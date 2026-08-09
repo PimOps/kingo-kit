@@ -17,7 +17,7 @@ The stack includes:
 
 ## Quick start on fresh Ubuntu
 
-Ubuntu 22.04, 24.04, or 26.04 on x86-64 or ARM64 is recommended. Give the VM at least 4 CPU cores, 8 GB RAM, and 35 GB free disk; 16 GB RAM is more comfortable when every app runs simultaneously.
+Ubuntu 22.04, 24.04, or 26.04 on x86-64 or ARM64 is recommended. Give the VM at least 4 CPU cores, 8 GB RAM, and 40 GB free disk; 16 GB RAM is more comfortable when every app runs simultaneously.
 
 On a fresh Ubuntu VM running in VMware Fusion, install the guest tools first:
 
@@ -57,11 +57,13 @@ ollama launch claude
 ./kingo up                 # start/update the lab
 ./kingo down               # stop it without deleting data
 ./kingo status             # container status and health
+./kingo health metabase    # health-check details and recent logs
 ./kingo urls               # URLs and usernames
 ./kingo credentials        # local classroom credentials
 ./kingo logs n8n           # follow one service's logs
 ./kingo app jupyter up     # manage only one application
 ./kingo app metabase logs  # follow one application's logs
+./kingo docker ps          # Docker CLI through the group-access fallback
 ./kingo samples            # retry/finish sample-data loading
 ./kingo psql               # warehouse SQL prompt
 ```
@@ -167,8 +169,8 @@ This deletes databases, n8n workflows, Langflow state, and web-app settings. Fil
 
 ## Troubleshooting
 
-- `permission denied` for Docker: run `./kingo doctor` to distinguish account membership, session membership, daemon status, and socket permissions. Current versions of `./kingo` transparently activate an already-granted Docker group membership. If the account was not added, run `sudo usermod -aG docker "$USER"` once and reboot Ubuntu.
-- A service is `unhealthy`: inspect it with `./kingo logs SERVICE`, for example `./kingo logs metabase`.
+- `permission denied` for direct Docker commands: run `./kingo doctor` to distinguish account membership, session membership, daemon status, and socket permissions. `./kingo docker ps` works through Kingo's group-access fallback. If the account is listed in the Docker group but the current session is not, `newgrp docker` activates it in the current terminal. If the account was not added, run `sudo usermod -aG docker "$USER"` once and reboot Ubuntu.
+- A service is `unhealthy`: inspect its health-check history and recent logs with `./kingo health SERVICE`, for example `./kingo health metabase`.
 - A port is already in use: edit that service's host port in `.env`, then run `./kingo up`.
 - Sample loading failed: verify internet access, then run `./kingo samples`. AdventureWorks and WWI are independently checkpointed.
 - Low memory: stop unused apps with `./kingo app langflow down` and `./kingo app metabase down`, or give the VM more RAM.

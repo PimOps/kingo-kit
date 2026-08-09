@@ -29,6 +29,8 @@ Commands:
   urls            Show browser URLs and local login information
   credentials     Show database and application credentials from .env
   doctor          Diagnose Docker access and installation status
+  health SERVICE  Show container health details and recent service logs
+  docker ARGS...  Run a Docker command with Kingo's group-access fallback
   app NAME ACTION Manage one app: up, down, restart, status, or logs
   samples         Load/retry AdventureWorks and WideWorldImportersDW
   psql            Open psql in the warehouse as the postgres administrator
@@ -130,6 +132,31 @@ doctor() {
   fi
 }
 
+show_health() {
+  local service="${1:-}"
+  if [[ -z "$service" ]]; then
+    echo "Usage: ./kingo health SERVICE" >&2
+    exit 2
+  fi
+  if ! "${compose[@]}" config --services | grep -Fxq "$service"; then
+    echo "Unknown service: $service" >&2
+    exit 2
+  fi
+
+  local container_id
+  container_id="$("${compose[@]}" ps --all --quiet "$service")"
+  if [[ -z "$container_id" ]]; then
+    echo "No container exists for service '$service'. Start the stack with: ./kingo up" >&2
+    exit 1
+  fi
+
+  echo "Container state:"
+  docker inspect --format '{{json .State}}' "$container_id" | jq '{status: .Status, running: .Running, exit_code: .ExitCode, error: .Error, health: (.Health.Status // "not configured"), health_checks: ((.Health.Log // []) | map({started: .Start, exit_code: .ExitCode, output: .Output}) | .[-5:])}'
+  echo
+  echo "Recent $service logs:"
+  "${compose[@]}" logs --no-color --tail=100 "$service"
+}
+
 host_for_urls="localhost"
 if [[ "${BIND_ADDRESS:-127.0.0.1}" == "0.0.0.0" ]]; then
   host_for_urls="$(hostname -I 2>/dev/null | awk '{print $1}')"
@@ -170,6 +197,19 @@ Jupyter token: ${JUPYTER_TOKEN}
 EOF
     ;;
   doctor) doctor ;;
+  health)
+    ensure_docker_access "$@"
+    show_health "${2:-}"
+    ;;
+  docker)
+    shift
+    if [[ "$#" -eq 0 ]]; then
+      echo "Usage: ./kingo docker ARGS..." >&2
+      exit 2
+    fi
+    ensure_docker_access docker "$@"
+    docker "$@"
+    ;;
   app) shift; run_app "$@" ;;
   samples)
     ensure_docker_access "$@"
