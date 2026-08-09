@@ -112,10 +112,11 @@ Start with `notebooks/00_kingo_kit_welcome.ipynb` in JupyterLab.
 
 ## Database design
 
-There are two PostgreSQL databases:
+There are three PostgreSQL databases:
 
 - `warehouse` is the shared analytics database. WideWorldImportersDW is in schema `wwi`; AdventureWorks retains its case-sensitive schemas: `Sales`, `Person`, `Production`, `Purchasing`, and `HumanResources`. The `vector`, `postgis`, and `uuid-ossp` extensions are enabled.
-- `kingo` stores application state. Each tool has a separate schema and login: `n8n`, `langflow`, `langgraph`, `metabase`, `cloudbeaver`, and `jupyter`. A `shared` schema is available for cross-tool experiments.
+- `kingo` stores shared application state. Each compatible tool has a separate schema and login: `n8n`, `langflow`, `langgraph`, `cloudbeaver`, and `jupyter`. A `shared` schema is available for cross-tool experiments.
+- `metabase` is Metabase's dedicated application database. Metabase requires control of its application database's `public` schema for Liquibase migrations; it uses a separate connection to read the `warehouse` database.
 
 Every application role can read the warehouse. This makes a teaching flow straightforward: extract/orchestrate with n8n, explore or transform in Jupyter, build AI flows in Langflow/LangGraph, inspect SQL in CloudBeaver, and visualize the result in Metabase.
 
@@ -154,6 +155,8 @@ To reapply only the wallpaper and Firefox homepage configuration:
 ## Configuration and upgrades
 
 The first run creates `.env` from `.env.example` and generates random local passwords. `.env` is ignored by Git. Instructors can change ports, bind address, timezone, image versions, or credentials before starting the stack.
+
+Before dependent applications start, `./kingo up` idempotently reconciles PostgreSQL's required extensions (`vector`, `citext`, PostGIS, and `uuid-ossp`). This also upgrades existing student volumes safely when a newer application version introduces an extension requirement.
 
 To apply a Compose or image update:
 

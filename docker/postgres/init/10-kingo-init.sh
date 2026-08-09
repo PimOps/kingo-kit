@@ -41,11 +41,9 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'warehouse')\gexec
 SQL
 
 psql --username "$POSTGRES_USER" --dbname kingo --set ON_ERROR_STOP=1 <<'SQL'
-CREATE EXTENSION IF NOT EXISTS vector;
 CREATE SCHEMA IF NOT EXISTS n8n AUTHORIZATION n8n;
 CREATE SCHEMA IF NOT EXISTS langflow AUTHORIZATION langflow;
 CREATE SCHEMA IF NOT EXISTS langgraph AUTHORIZATION langgraph;
-CREATE SCHEMA IF NOT EXISTS metabase AUTHORIZATION metabase;
 CREATE SCHEMA IF NOT EXISTS cloudbeaver AUTHORIZATION cloudbeaver;
 CREATE SCHEMA IF NOT EXISTS jupyter AUTHORIZATION jupyter;
 CREATE SCHEMA IF NOT EXISTS shared AUTHORIZATION postgres;
@@ -53,7 +51,6 @@ CREATE SCHEMA IF NOT EXISTS shared AUTHORIZATION postgres;
 ALTER ROLE n8n IN DATABASE kingo SET search_path = n8n;
 ALTER ROLE langflow IN DATABASE kingo SET search_path = langflow;
 ALTER ROLE langgraph IN DATABASE kingo SET search_path = langgraph, shared, public;
-ALTER ROLE metabase IN DATABASE kingo SET search_path = metabase;
 ALTER ROLE cloudbeaver IN DATABASE kingo SET search_path = cloudbeaver;
 ALTER ROLE jupyter IN DATABASE kingo SET search_path = jupyter, shared, public;
 
@@ -65,9 +62,6 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA shared GRANT USAGE, SELECT ON SEQUENCES TO la
 SQL
 
 psql --username "$POSTGRES_USER" --dbname warehouse --set ON_ERROR_STOP=1 <<'SQL'
-CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE SCHEMA IF NOT EXISTS wwi AUTHORIZATION postgres;
 CREATE SCHEMA IF NOT EXISTS kingo_meta AUTHORIZATION postgres;
 CREATE TABLE IF NOT EXISTS kingo_meta.sample_loads (

@@ -123,6 +123,9 @@ if ! "${docker_command[@]}" network inspect kingo-kit >/dev/null 2>&1; then
   "${docker_command[@]}" network create kingo-kit >/dev/null
 fi
 "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
+"${compose[@]}" exec -T postgres \
+  psql --username postgres --dbname postgres --set ON_ERROR_STOP=1 \
+  --file /docker-entrypoint-initdb.d/20-required-extensions.sql >/dev/null
 "${compose[@]}" up -d --build
 sample_load_failed=false
 if [[ "$skip_samples" == false ]]; then

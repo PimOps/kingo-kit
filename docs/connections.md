@@ -2,7 +2,7 @@
 
 Docker services reach PostgreSQL at `postgres:5432`. Programs running directly on Ubuntu (or through forwarded host ports) use `localhost` and the `POSTGRES_PORT` value from `.env`, which defaults to `5432`.
 
-Use the `warehouse` database for analysis. Application state belongs in the `kingo` database and the application's named schema.
+Use the `warehouse` database for analysis. Most application state belongs in the `kingo` database and the application's named schema. Metabase uses a dedicated `metabase` application database because its migrations require control of the `public` schema.
 
 ## CloudBeaver
 
@@ -21,6 +21,8 @@ Enable **Show all databases** if you also want to inspect the platform database.
 ## Metabase
 
 Kingo Kit completes Metabase's first-run setup and adds **Kingo Warehouse** automatically. On the first start, Metabase may need another minute to scan all table metadata after its page becomes available.
+
+Metabase stores its own users, settings, questions, and dashboards in the dedicated `metabase` database. This is separate from its automatically configured `warehouse` analytics connection.
 
 If the automatic step was interrupted, add a PostgreSQL database with host `postgres`, port `5432`, database `warehouse`, user `metabase`, and `METABASE_DB_PASSWORD` from `.env`.
 
@@ -80,7 +82,7 @@ df
 | `kingo` | `n8n` | n8n application state |
 | `kingo` | `langflow` | Langflow application state |
 | `kingo` | `langgraph` | LangGraph checkpoints and course projects |
-| `kingo` | `metabase` | Metabase application state |
+| `metabase` | `public` | Metabase application state and Liquibase migrations |
 | `kingo` | `cloudbeaver` | Reserved for CloudBeaver exercises/state |
 | `kingo` | `jupyter` | Jupyter-owned course objects |
 | `kingo` | `shared` | Cross-tool classroom exercises |

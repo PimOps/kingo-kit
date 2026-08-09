@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       MB_DB_TYPE: postgres
-      MB_DB_CONNECTION_URI: jdbc:postgresql://postgres:5432/kingo?currentSchema=metabase
+      MB_DB_CONNECTION_URI: jdbc:postgresql://postgres:5432/metabase
       MB_DB_USER: metabase
       MB_DB_PASS: ${METABASE_DB_PASSWORD}
       MB_SITE_NAME: SKKU Kingo Kit
