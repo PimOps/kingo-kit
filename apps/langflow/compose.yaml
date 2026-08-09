@@ -1,0 +1,27 @@
+services:
+  langflow:
+    image: ${LANGFLOW_IMAGE:-langflowai/langflow:1.9.2}
+    restart: unless-stopped
+    environment:
+      LANGFLOW_HOST: 0.0.0.0
+      LANGFLOW_PORT: 7860
+      LANGFLOW_SECRET_KEY: ${LANGFLOW_SECRET_KEY}
+      LANGFLOW_DATABASE_URL: postgresql://langflow:${LANGFLOW_DB_PASSWORD}@postgres:5432/kingo?options=-csearch_path%3Dlangflow
+      LANGFLOW_AUTO_LOGIN: "true"
+      LANGFLOW_SUPERUSER: kingo
+      LANGFLOW_SUPERUSER_PASSWORD: ${LANGFLOW_SECRET_KEY}
+      LANGFLOW_NEW_USER_IS_ACTIVE: "true"
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${LANGFLOW_PORT:-7860}:7860"
+    volumes:
+      - langflow-data:/app/langflow
+    networks: [kingo-langflow]
+
+volumes:
+  langflow-data:
+    name: ${COMPOSE_PROJECT_NAME:-kingo-kit}_langflow-data
+
+networks:
+  kingo-langflow:
+    name: kingo-kit
+    external: true

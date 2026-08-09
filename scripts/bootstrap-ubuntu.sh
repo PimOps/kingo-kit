@@ -111,12 +111,18 @@ echo "[5/6] Configuring the Ubuntu wallpaper and Firefox homepage..."
 # A fresh docker-group membership is not active in this shell, so use sudo only
 # when the normal account cannot yet access the daemon.
 if docker info >/dev/null 2>&1; then
+  docker_command=(docker)
   compose=(docker compose --project-directory "$repo_dir")
 else
+  docker_command=(sudo docker)
   compose=(sudo docker compose --project-directory "$repo_dir")
 fi
 
 echo "[6/6] Starting Kingo Kit..."
+if ! "${docker_command[@]}" network inspect kingo-kit >/dev/null 2>&1; then
+  "${docker_command[@]}" network create kingo-kit >/dev/null
+fi
+"${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
 "${compose[@]}" up -d --build
 sample_load_failed=false
 if [[ "$skip_samples" == false ]]; then

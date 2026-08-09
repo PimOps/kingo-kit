@@ -1,0 +1,24 @@
+services:
+  cloudbeaver:
+    image: ${CLOUDBEAVER_IMAGE:-dbeaver/cloudbeaver:26.0.5}
+    restart: unless-stopped
+    environment:
+      CB_SERVER_NAME: SKKU Kingo Kit
+      CB_SERVER_URL: http://localhost:${CLOUDBEAVER_PORT:-8978}
+      CB_ADMIN_NAME: ${CLOUDBEAVER_ADMIN_USER:-kingo}
+      CB_ADMIN_PASSWORD: ${CLOUDBEAVER_ADMIN_PASSWORD}
+      CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS: "true"
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${CLOUDBEAVER_PORT:-8978}:8978"
+    volumes:
+      - cloudbeaver-workspace:/opt/cloudbeaver/workspace
+    networks: [kingo-cloudbeaver]
+
+volumes:
+  cloudbeaver-workspace:
+    name: ${COMPOSE_PROJECT_NAME:-kingo-kit}_cloudbeaver-workspace
+
+networks:
+  kingo-cloudbeaver:
+    name: kingo-kit
+    external: true

@@ -1,0 +1,41 @@
+services:
+  metabase:
+    image: ${METABASE_IMAGE:-metabase/metabase:v0.61.9}
+    restart: unless-stopped
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_CONNECTION_URI: jdbc:postgresql://postgres:5432/kingo?currentSchema=metabase
+      MB_DB_USER: metabase
+      MB_DB_PASS: ${METABASE_DB_PASSWORD}
+      MB_SITE_NAME: SKKU Kingo Kit
+      MB_ANON_TRACKING_ENABLED: "false"
+      JAVA_TIMEZONE: ${TZ:-Asia/Seoul}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${METABASE_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks: [kingo-metabase]
+
+  metabase-init:
+    image: curlimages/curl:8.16.0
+    restart: "no"
+    environment:
+      METABASE_ADMIN_EMAIL: ${METABASE_ADMIN_EMAIL}
+      METABASE_ADMIN_PASSWORD: ${METABASE_ADMIN_PASSWORD}
+      METABASE_DB_PASSWORD: ${METABASE_DB_PASSWORD}
+    volumes:
+      - ../../docker/metabase/init.sh:/init.sh:ro
+    entrypoint: ["/bin/sh", "/init.sh"]
+    depends_on:
+      metabase:
+        condition: service_healthy
+    networks: [kingo-metabase]
+
+networks:
+  kingo-metabase:
+    name: kingo-kit
+    external: true

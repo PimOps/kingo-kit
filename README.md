@@ -60,11 +60,38 @@ ollama launch claude
 ./kingo urls               # URLs and usernames
 ./kingo credentials        # local classroom credentials
 ./kingo logs n8n           # follow one service's logs
+./kingo app jupyter up     # manage only one application
+./kingo app metabase logs  # follow one application's logs
 ./kingo samples            # retry/finish sample-data loading
 ./kingo psql               # warehouse SQL prompt
 ```
 
 `make up`, `make down`, `make status`, and similar aliases are also provided.
+
+## Modular Compose layout
+
+Every application has its own folder and standalone Compose file:
+
+| Folder | Contents |
+|---|---|
+| `apps/postgres/` | PostgreSQL, pgvector, PostGIS, schemas, and application users |
+| `apps/jupyter/` | JupyterLab and its persistent home volume |
+| `apps/langflow/` | Langflow |
+| `apps/n8n/` | n8n |
+| `apps/metabase/` | Metabase and its automatic warehouse setup helper |
+| `apps/cloudbeaver/` | CloudBeaver |
+| `apps/sample-data/` | One-shot AdventureWorks and WWI import tooling |
+
+The root `compose.yaml` includes these files to retain the simple `./kingo up` whole-lab workflow. All application files connect to the shared external `kingo-kit` Docker network, and their explicitly named volumes preserve compatibility with existing Kingo Kit installations. Use `./kingo app NAME ACTION` to operate one application without having to remember Compose paths or project options; supported actions are `up`, `down`, `restart`, `status`, and `logs`.
+
+PostgreSQL is the common dependency. Start it before running another application independently:
+
+```bash
+./kingo app postgres up
+./kingo app jupyter up
+```
+
+See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intended for maintainers.
 
 ## Services
 
@@ -144,7 +171,7 @@ This deletes databases, n8n workflows, Langflow state, and web-app settings. Fil
 - A service is `unhealthy`: inspect it with `./kingo logs SERVICE`, for example `./kingo logs metabase`.
 - A port is already in use: edit that service's host port in `.env`, then run `./kingo up`.
 - Sample loading failed: verify internet access, then run `./kingo samples`. AdventureWorks and WWI are independently checkpointed.
-- Low memory: stop unused apps with `docker compose stop langflow metabase`, or give the VM more RAM.
+- Low memory: stop unused apps with `./kingo app langflow down` and `./kingo app metabase down`, or give the VM more RAM.
 - Metabase was manually initialized with different credentials before provisioning completed: sign in and add PostgreSQL using the settings in `docs/connections.md`, or reset the stack on a disposable fresh install.
 
 ## Data provenance

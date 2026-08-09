@@ -27,3 +27,6 @@ samples:
 psql:
 	./kingo psql
 
+# Example: make app APP=jupyter ACTION=logs
+app:
+	./kingo app $(APP) $(or $(ACTION),status)

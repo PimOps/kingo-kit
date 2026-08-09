@@ -1,0 +1,32 @@
+services:
+  adventureworks-source:
+    image: ${ADVENTUREWORKS_IMAGE:-chriseaton/adventureworks:postgres-16}
+    profiles: [samples]
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+    networks: [kingo-samples]
+
+  sample-loader:
+    build:
+      context: ../..
+      dockerfile: docker/sample-loader/Dockerfile
+    profiles: [samples]
+    environment:
+      TARGET_DSN: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/warehouse
+      ADVENTUREWORKS_DSN: postgresql://postgres:${POSTGRES_PASSWORD}@adventureworks-source:5432/postgres
+      WWI_CONTAINER_URL: ${WWI_CONTAINER_URL:-https://fabrictutorialdata.blob.core.windows.net/sampledata}
+    depends_on:
+      adventureworks-source:
+        condition: service_healthy
+    networks: [kingo-samples]
+
+networks:
+  kingo-samples:
+    name: kingo-kit
+    external: true

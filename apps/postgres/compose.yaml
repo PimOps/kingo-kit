@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-kingo-kit-postgres:pg17}
+    build:
+      context: ../..
+      dockerfile: docker/postgres/Dockerfile
+      args:
+        POSTGRES_BASE_IMAGE: ${POSTGRES_BASE_IMAGE:-pgvector/pgvector:pg17}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kingo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD}
+      LANGFLOW_DB_PASSWORD: ${LANGFLOW_DB_PASSWORD}
+      LANGGRAPH_DB_PASSWORD: ${LANGGRAPH_DB_PASSWORD}
+      METABASE_DB_PASSWORD: ${METABASE_DB_PASSWORD}
+      CLOUDBEAVER_DB_PASSWORD: ${CLOUDBEAVER_DB_PASSWORD}
+      JUPYTER_DB_PASSWORD: ${JUPYTER_DB_PASSWORD}
+      STUDENT_DB_PASSWORD: ${STUDENT_DB_PASSWORD}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../../docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kingo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      kingo-postgres:
+        aliases: [postgres]
+
+volumes:
+  postgres-data:
+    name: ${COMPOSE_PROJECT_NAME:-kingo-kit}_postgres-data
+
+networks:
+  kingo-postgres:
+    name: kingo-kit
+    external: true

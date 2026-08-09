@@ -1,0 +1,36 @@
+services:
+  jupyter:
+    build:
+      context: ../..
+      dockerfile: docker/jupyter/Dockerfile
+      args:
+        JUPYTER_BASE_IMAGE: ${JUPYTER_BASE_IMAGE:-quay.io/jupyter/minimal-notebook:python-3.12}
+    restart: unless-stopped
+    environment:
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN}
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: warehouse
+      PGUSER: jupyter
+      PGPASSWORD: ${JUPYTER_DB_PASSWORD}
+      DATABASE_URL: postgresql+psycopg://jupyter:${JUPYTER_DB_PASSWORD}@postgres:5432/warehouse
+    command:
+      - start-notebook.py
+      - --ServerApp.token=${JUPYTER_TOKEN}
+      - --ServerApp.password=
+      - --ServerApp.allow_origin=*
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${JUPYTER_PORT:-8888}:8888"
+    volumes:
+      - ../../notebooks:/home/jovyan/work
+      - jupyter-home:/home/jovyan/.jupyter
+    networks: [kingo-jupyter]
+
+volumes:
+  jupyter-home:
+    name: ${COMPOSE_PROJECT_NAME:-kingo-kit}_jupyter-home
+
+networks:
+  kingo-jupyter:
+    name: kingo-kit
+    external: true

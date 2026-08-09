@@ -29,10 +29,45 @@ Commands:
   urls            Show browser URLs and local login information
   credentials     Show database and application credentials from .env
   doctor          Diagnose Docker access and installation status
+  app NAME ACTION Manage one app: up, down, restart, status, or logs
   samples         Load/retry AdventureWorks and WideWorldImportersDW
   psql            Open psql in the warehouse as the postgres administrator
   reset --yes     Delete all Kingo Kit containers and data volumes
 EOF
+}
+
+ensure_kingo_network() {
+  if ! docker network inspect kingo-kit >/dev/null 2>&1; then
+    docker network create kingo-kit >/dev/null
+  fi
+}
+
+run_app() {
+  local app_name="${1:-}" action="${2:-status}"
+  case "$app_name" in
+    postgres|jupyter|langflow|n8n|metabase|cloudbeaver) ;;
+    *)
+      echo "Unknown app: ${app_name:-<missing>}" >&2
+      echo "Available apps: postgres, jupyter, langflow, n8n, metabase, cloudbeaver" >&2
+      exit 2
+      ;;
+  esac
+  case "$action" in
+    up|down|restart|status|logs) ;;
+    *) echo "Unknown app action: $action" >&2; exit 2 ;;
+  esac
+
+  ensure_docker_access app "$app_name" "$action"
+  ensure_kingo_network
+  local app_file="$repo_dir/apps/$app_name/compose.yaml"
+  local app_compose=(docker compose --project-directory "$repo_dir" --env-file "$repo_dir/.env" -f "$app_file")
+  case "$action" in
+    up) "${app_compose[@]}" up -d --build ;;
+    down) "${app_compose[@]}" down ;;
+    restart) "${app_compose[@]}" restart ;;
+    status) "${app_compose[@]}" ps ;;
+    logs) "${app_compose[@]}" logs --follow --tail=100 ;;
+  esac
 }
 
 ensure_docker_access() {
@@ -102,7 +137,12 @@ if [[ "${BIND_ADDRESS:-127.0.0.1}" == "0.0.0.0" ]]; then
 fi
 
 case "${1:-}" in
-  up) ensure_docker_access "$@"; "${compose[@]}" up -d --build ;;
+  up)
+    ensure_docker_access "$@"
+    ensure_kingo_network
+    "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
+    "${compose[@]}" up -d --build
+    ;;
   down) ensure_docker_access "$@"; "${compose[@]}" down ;;
   restart) ensure_docker_access "$@"; "${compose[@]}" restart ;;
   status) ensure_docker_access "$@"; "${compose[@]}" ps ;;
@@ -130,9 +170,11 @@ Jupyter token: ${JUPYTER_TOKEN}
 EOF
     ;;
   doctor) doctor ;;
+  app) shift; run_app "$@" ;;
   samples)
     ensure_docker_access "$@"
-    "${compose[@]}" up -d postgres
+    ensure_kingo_network
+    "${compose[@]}" up -d --wait --wait-timeout 180 postgres
     "${compose[@]}" --profile samples run --rm --build sample-loader
     "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
     ;;
