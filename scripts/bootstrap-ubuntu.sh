@@ -46,12 +46,12 @@ if ! command -v sudo >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[1/5] Installing base packages..."
+echo "[1/6] Installing base packages..."
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl git jq openssl zstd
 
 if ! docker compose version >/dev/null 2>&1; then
-  echo "[2/5] Installing Docker Engine and the Compose plugin..."
+  echo "[2/6] Installing Docker Engine and the Compose plugin..."
   sudo install -m 0755 -d /etc/apt/keyrings
   sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
   sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -69,7 +69,7 @@ if ! docker compose version >/dev/null 2>&1; then
   sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   sudo systemctl enable --now docker
 else
-  echo "[2/5] Docker Compose is already available."
+  echo "[2/6] Docker Compose is already available."
 fi
 
 if ! id -nG "$USER" | tr ' ' '\n' | grep -qx docker; then
@@ -79,9 +79,9 @@ fi
 
 if [[ "$skip_ollama" == false ]]; then
   if command -v ollama >/dev/null 2>&1; then
-    echo "[3/5] Ollama is already installed."
+    echo "[3/6] Ollama is already installed."
   else
-    echo "[3/5] Installing Ollama on the Ubuntu host..."
+    echo "[3/6] Installing Ollama on the Ubuntu host..."
     installer="$(mktemp)"
     trap 'rm -f "$installer"' EXIT
     curl -fsSL https://ollama.com/install.sh -o "$installer"
@@ -90,11 +90,14 @@ if [[ "$skip_ollama" == false ]]; then
     trap - EXIT
   fi
 else
-  echo "[3/5] Skipping Ollama."
+  echo "[3/6] Skipping Ollama."
 fi
 
-echo "[4/5] Generating local credentials..."
+echo "[4/6] Generating local credentials..."
 "$repo_dir/scripts/generate-env.sh"
+
+echo "[5/6] Configuring the Ubuntu wallpaper and Firefox homepage..."
+"$repo_dir/scripts/configure-ubuntu-experience.sh"
 
 # A fresh docker-group membership is not active in this shell, so use sudo only
 # when the normal account cannot yet access the daemon.
@@ -104,7 +107,7 @@ else
   compose=(sudo docker compose --project-directory "$repo_dir")
 fi
 
-echo "[5/5] Starting Kingo Kit..."
+echo "[6/6] Starting Kingo Kit..."
 "${compose[@]}" up -d postgres
 if [[ "$skip_samples" == false ]]; then
   echo "Loading AdventureWorks and WideWorldImportersDW. This can take several minutes..."

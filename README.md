@@ -12,10 +12,12 @@ The stack includes:
 - CloudBeaver for browser-based SQL and database exploration
 - AdventureWorks and WideWorldImportersDW sample data in PostgreSQL
 - Host-native Ollama, ready to configure Claude Code with `ollama launch claude`
+- Kingo Kit's SKKU-green hanok wallpaper on Ubuntu Desktop
+- Firefox homepage configured as <https://kkportal.askkingo.ai>
 
 ## Quick start on fresh Ubuntu
 
-Ubuntu 22.04, 24.04, or 26.04 on x86-64 or ARM64 is recommended. Give the VM at least 4 CPU cores, 12 GB RAM, and 35 GB free disk; 16 GB RAM is more comfortable when every app runs simultaneously.
+Ubuntu 22.04, 24.04, or 26.04 on x86-64 or ARM64 is recommended. Give the VM at least 4 CPU cores, 8 GB RAM, and 35 GB free disk; 16 GB RAM is more comfortable when every app runs simultaneously.
 
 On a fresh Ubuntu VM running in VMware Fusion, install the guest tools first:
 
@@ -32,6 +34,8 @@ cd kingo-kit
 ```
 
 The installer uses Docker Engine on both Server and Desktop. Docker Desktop is unnecessary on Ubuntu for this stack and consumes additional resources. On Ubuntu Desktop, open the URLs in Firefox; on Ubuntu Server, use SSH port forwarding or set up VM port forwarding as described below.
+
+On Ubuntu Desktop, the installer copies the Kingo Kit wallpaper to `/usr/local/share/backgrounds` and applies it to the student account for light and dark modes. Ubuntu Server safely skips the GNOME setting. Firefox receives an unlocked system policy that makes <https://kkportal.askkingo.ai> its homepage and startup page while still allowing a student to change it.
 
 The first run downloads several large images and both datasets. It can take 10–30 minutes depending on the connection. It is safe to rerun the installer.
 
@@ -108,6 +112,12 @@ For a trusted, firewalled classroom/bridged network, changing `BIND_ADDRESS=0.0.
 
 If samples were skipped or the download was interrupted, run `./kingo samples` later. The loader records completed datasets and will not duplicate them.
 
+To reapply only the wallpaper and Firefox homepage configuration:
+
+```bash
+./scripts/configure-ubuntu-experience.sh
+```
+
 ## Configuration and upgrades
 
 The first run creates `.env` from `.env.example` and generates random local passwords. `.env` is ignored by Git. Instructors can change ports, bind address, timezone, image versions, or credentials before starting the stack.
@@ -137,6 +147,6 @@ This deletes databases, n8n workflows, Langflow state, and web-app settings. Fil
 
 ## Data provenance
 
-AdventureWorks comes from the multi-architecture PostgreSQL port maintained in [`chriseaton/docker-adventureworks`](https://github.com/chriseaton/docker-adventureworks), built from Microsoft's sample. WideWorldImportersDW is loaded from Microsoft's public Azure Synapse sample-data Parquet export. The original WWI project is a SQL Server sample; loading the published Parquet tables avoids adding an entire SQL Server instance to the student VM.
+AdventureWorks comes from the multi-architecture PostgreSQL port maintained in [`chriseaton/docker-adventureworks`](https://github.com/chriseaton/docker-adventureworks), built from Microsoft's sample. WideWorldImportersDW is loaded from Microsoft's public Fabric tutorial-data Parquet export. The original WWI project is a SQL Server sample; loading the published Parquet tables avoids adding an entire SQL Server instance to the student VM. Its source URL is configurable with `WWI_CONTAINER_URL` in `.env`.
 
 Kingo Kit is intended for local education and development, not production or public internet hosting.

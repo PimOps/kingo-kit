@@ -191,6 +191,7 @@ services:
     environment:
       TARGET_DSN: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/warehouse
       ADVENTUREWORKS_DSN: postgresql://postgres:${POSTGRES_PASSWORD}@adventureworks-source:5432/postgres
+      WWI_CONTAINER_URL: ${WWI_CONTAINER_URL:-https://fabrictutorialdata.blob.core.windows.net/sampledata}
     depends_on:
       postgres:
         condition: service_healthy

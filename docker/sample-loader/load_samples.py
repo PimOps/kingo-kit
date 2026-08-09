@@ -7,9 +7,9 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-from io import BytesIO
 from urllib.parse import urlparse
 
 import pyarrow as pa
@@ -20,7 +20,10 @@ from psycopg import sql
 
 TARGET_DSN = os.environ["TARGET_DSN"]
 ADVENTUREWORKS_DSN = os.environ["ADVENTUREWORKS_DSN"]
-AZURE_CONTAINER = "https://azuresynapsestorage.blob.core.windows.net/sampledata"
+WWI_CONTAINER = os.environ.get(
+    "WWI_CONTAINER_URL",
+    "https://fabrictutorialdata.blob.core.windows.net/sampledata",
+).rstrip("/")
 WWI_PREFIX = "WideWorldImportersDW/tables/"
 
 
@@ -119,7 +122,7 @@ def list_wwi_blobs() -> dict[str, list[str]]:
     marker = ""
     while True:
         response = requests.get(
-            AZURE_CONTAINER,
+            WWI_CONTAINER,
             params={"restype": "container", "comp": "list", "prefix": WWI_PREFIX, "marker": marker},
             timeout=60,
         )
@@ -128,8 +131,13 @@ def list_wwi_blobs() -> dict[str, list[str]]:
         for node in root.findall("./Blobs/Blob/Name"):
             if node.text and node.text.endswith(".parquet"):
                 relative = node.text[len(WWI_PREFIX):]
-                table = relative.split("/", 1)[0]
-                tables[table].append(f"{AZURE_CONTAINER}/{node.text}")
+                # Microsoft's current Fabric tutorial container also has
+                # Spark output under tables/cleaned/. Load only the canonical
+                # top-level files such as dimension_customer.parquet.
+                if "/" in relative:
+                    continue
+                table = relative.removesuffix(".parquet")
+                tables[table].append(f"{WWI_CONTAINER}/{node.text}")
         marker = root.findtext("NextMarker") or ""
         if not marker:
             return dict(tables)
@@ -165,7 +173,42 @@ def pg_type(dtype: pa.DataType) -> str:
     return "text"
 
 
+def load_parquet_url(conn: psycopg.Connection, table_name: str, url: str, create: bool) -> int:
+    # fact_sale.parquet is roughly 400 MB compressed. Stream it to the
+    # ephemeral loader container and process bounded Arrow batches instead of
+    # retaining both the HTTP body and the expanded table in RAM.
+    with requests.get(url, timeout=180, stream=True) as response:
+        response.raise_for_status()
+        with tempfile.NamedTemporaryFile(suffix=".parquet") as downloaded:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                downloaded.write(chunk)
+            downloaded.flush()
+            parquet = pq.ParquetFile(downloaded.name)
+            arrow_schema = parquet.schema_arrow
+            columns = [clean_name(name) for name in arrow_schema.names]
+
+            with conn.cursor() as cur:
+                if create:
+                    definitions = sql.SQL(", ").join(
+                        sql.SQL("{} {}").format(sql.Identifier(name), sql.SQL(pg_type(field.type)))
+                        for name, field in zip(columns, arrow_schema)
+                    )
+                    cur.execute(sql.SQL("DROP TABLE IF EXISTS wwi.{} CASCADE").format(sql.Identifier(table_name)))
+                    cur.execute(sql.SQL("CREATE TABLE wwi.{} ({})").format(sql.Identifier(table_name), definitions))
+                copy_stmt = sql.SQL("COPY wwi.{} ({}) FROM STDIN").format(
+                    sql.Identifier(table_name), sql.SQL(", ").join(map(sql.Identifier, columns))
+                )
+                total = 0
+                with cur.copy(copy_stmt) as copy:
+                    for batch in parquet.iter_batches(batch_size=5000):
+                        for row in batch.to_pylist():
+                            copy.write_row([row[original] for original in arrow_schema.names])
+                        total += batch.num_rows
+                return total
+
+
 def load_arrow_table(conn: psycopg.Connection, table_name: str, arrow_table: pa.Table, create: bool) -> int:
+    """Load an in-memory table (kept for small-data callers and tests)."""
     columns = [clean_name(name) for name in arrow_table.column_names]
     with conn.cursor() as cur:
         if create:
@@ -202,15 +245,12 @@ def load_wwi() -> None:
             total = 0
             print(f"  {table_name}: {len(urls)} file(s)", flush=True)
             for index, url in enumerate(sorted(urls)):
-                response = requests.get(url, timeout=180)
-                response.raise_for_status()
-                arrow_table = pq.read_table(BytesIO(response.content))
-                total += load_arrow_table(conn, table_name, arrow_table, create=index == 0)
+                total += load_parquet_url(conn, table_name, url, create=index == 0)
             counts[table_name] = total
         with conn.cursor() as cur:
             cur.execute("GRANT USAGE ON SCHEMA wwi TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, student")
             cur.execute("GRANT SELECT ON ALL TABLES IN SCHEMA wwi TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, student")
-    mark_loaded("wide_world_importers_dw", {"source": AZURE_CONTAINER, "rows": counts})
+    mark_loaded("wide_world_importers_dw", {"source": WWI_CONTAINER, "rows": counts})
 
 
 def main() -> int:
