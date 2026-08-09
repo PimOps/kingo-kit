@@ -67,10 +67,13 @@ if ! docker compose version >/dev/null 2>&1; then
     | sudo tee /etc/apt/sources.list.d/docker.sources >/dev/null
   sudo apt-get update
   sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  sudo systemctl enable --now docker
 else
   echo "[2/6] Docker Compose is already available."
 fi
+
+# Docker may have been preinstalled while its systemd unit remained disabled.
+# Enabling it here ensures restart policies are honored after every reboot.
+sudo systemctl enable --now docker
 
 install_user="$(id -un)"
 # Always reconcile the account database. Checking only the current process's
@@ -114,13 +117,17 @@ else
 fi
 
 echo "[6/6] Starting Kingo Kit..."
-"${compose[@]}" up -d postgres
+"${compose[@]}" up -d --build
+sample_load_failed=false
 if [[ "$skip_samples" == false ]]; then
   echo "Loading AdventureWorks and WideWorldImportersDW. This can take several minutes..."
-  "${compose[@]}" --profile samples run --rm --build sample-loader
+  if ! "${compose[@]}" --profile samples run --rm --build sample-loader; then
+    sample_load_failed=true
+    echo "Sample loading did not finish, but the Kingo Kit apps are running." >&2
+    echo "Retry later with: $repo_dir/kingo samples" >&2
+  fi
   "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
 fi
-"${compose[@]}" up -d --build
 
 echo
 echo "Kingo Kit is running."
@@ -130,3 +137,6 @@ if [[ "$skip_ollama" == false ]]; then
   echo "To configure and launch Claude Code with Ollama Cloud: ollama launch claude"
 fi
 echo "Log out and back in once before using docker directly without sudo."
+if [[ "$sample_load_failed" == true ]]; then
+  echo "The apps are ready; only the optional sample-data import remains incomplete."
+fi
