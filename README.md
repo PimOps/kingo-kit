@@ -128,7 +128,7 @@ This deletes databases, n8n workflows, Langflow state, and web-app settings. Fil
 
 ## Troubleshooting
 
-- `permission denied` for Docker immediately after bootstrap: log out of Ubuntu and back in so the new `docker` group membership takes effect.
+- `permission denied` for Docker immediately after bootstrap: current versions of `./kingo` transparently activate an already-granted Docker group membership. If the account was not added, run `sudo usermod -aG docker "$USER"` once and then log out and back in or reboot Ubuntu.
 - A service is `unhealthy`: inspect it with `./kingo logs SERVICE`, for example `./kingo logs metabase`.
 - A port is already in use: edit that service's host port in `.env`, then run `./kingo up`.
 - Sample loading failed: verify internet access, then run `./kingo samples`. AdventureWorks and WWI are independently checkpointed.

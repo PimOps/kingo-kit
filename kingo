@@ -4,6 +4,25 @@ set -Eeuo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$repo_dir"
 
+# Docker group changes normally require a new login session. If bootstrap has
+# already added this account to the group but the current shell predates that
+# change, transparently re-run this command with the docker group activated.
+if ! docker info >/dev/null 2>&1; then
+  current_user="$(id -un)"
+  docker_group_members="$(getent group docker 2>/dev/null | cut -d: -f4 || true)"
+  if [[ "${KINGO_GROUP_REEXEC:-0}" != "1" ]] \
+    && [[ ",${docker_group_members}," == *",${current_user},"* ]] \
+    && command -v sg >/dev/null 2>&1; then
+    printf -v reexec_command '%q ' "$repo_dir/kingo" "$@"
+    exec sg docker -c "KINGO_GROUP_REEXEC=1 $reexec_command"
+  fi
+
+  echo "Your account cannot access Docker yet." >&2
+  echo "Repair it once with: sudo usermod -aG docker ${current_user}" >&2
+  echo "Then log out and back in, or reboot Ubuntu." >&2
+  exit 1
+fi
+
 if [[ ! -f .env ]]; then
   "$repo_dir/scripts/generate-env.sh"
 fi
