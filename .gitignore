@@ -1,0 +1,7 @@
+.env
+.DS_Store
+*.log
+.idea/
+.vscode/
+notebooks/.ipynb_checkpoints/
+
