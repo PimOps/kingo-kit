@@ -17,6 +17,13 @@ The stack includes:
 
 Ubuntu 22.04, 24.04, or 26.04 on x86-64 or ARM64 is recommended. Give the VM at least 4 CPU cores, 12 GB RAM, and 35 GB free disk; 16 GB RAM is more comfortable when every app runs simultaneously.
 
+On a fresh Ubuntu VM running in VMware Fusion, install the guest tools first:
+
+```bash
+sudo apt update
+sudo apt install open-vm-tools open-vm-tools-desktop
+```
+
 ```bash
 sudo apt-get update && sudo apt-get install -y git
 git clone https://github.com/YOUR-ORGANIZATION/kingo-kit.git
@@ -70,7 +77,7 @@ Start with `notebooks/00_kingo_kit_welcome.ipynb` in JupyterLab.
 
 There are two PostgreSQL databases:
 
-- `warehouse` is the shared analytics database. WideWorldImportersDW is in schema `wwi`; AdventureWorks retains its case-sensitive schemas: `Sales`, `Person`, `Production`, `Purchasing`, and `HumanResources`. The `vector` and `postgis` extensions are enabled.
+- `warehouse` is the shared analytics database. WideWorldImportersDW is in schema `wwi`; AdventureWorks retains its case-sensitive schemas: `Sales`, `Person`, `Production`, `Purchasing`, and `HumanResources`. The `vector`, `postgis`, and `uuid-ossp` extensions are enabled.
 - `kingo` stores application state. Each tool has a separate schema and login: `n8n`, `langflow`, `langgraph`, `metabase`, `cloudbeaver`, and `jupyter`. A `shared` schema is available for cross-tool experiments.
 
 Every application role can read the warehouse. This makes a teaching flow straightforward: extract/orchestrate with n8n, explore or transform in Jupyter, build AI flows in Langflow/LangGraph, inspect SQL in CloudBeaver, and visualize the result in Metabase.

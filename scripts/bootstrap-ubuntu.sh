@@ -108,7 +108,7 @@ echo "[5/5] Starting Kingo Kit..."
 "${compose[@]}" up -d postgres
 if [[ "$skip_samples" == false ]]; then
   echo "Loading AdventureWorks and WideWorldImportersDW. This can take several minutes..."
-  "${compose[@]}" --profile samples run --rm sample-loader
+  "${compose[@]}" --profile samples run --rm --build sample-loader
   "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
 fi
 "${compose[@]}" up -d --build
@@ -121,4 +121,3 @@ if [[ "$skip_ollama" == false ]]; then
   echo "To configure and launch Claude Code with Ollama Cloud: ollama launch claude"
 fi
 echo "Log out and back in once before using docker directly without sudo."
-

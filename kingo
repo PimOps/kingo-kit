@@ -70,7 +70,7 @@ EOF
     ;;
   samples)
     "${compose[@]}" up -d postgres
-    "${compose[@]}" --profile samples run --rm sample-loader
+    "${compose[@]}" --profile samples run --rm --build sample-loader
     "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
     ;;
   psql)
@@ -87,4 +87,3 @@ EOF
   -h|--help|help|"") usage ;;
   *) echo "Unknown command: $1" >&2; usage >&2; exit 2 ;;
 esac
-

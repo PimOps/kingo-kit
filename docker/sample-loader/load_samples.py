@@ -39,6 +39,19 @@ def mark_loaded(dataset: str, details: dict[str, object]) -> None:
         )
 
 
+def ensure_target_extensions() -> None:
+    """Install extensions required by the platform and imported samples.
+
+    This intentionally runs from the loader as well as the first-init SQL. Docker
+    entrypoint initialization scripts only run for a new data volume, so placing
+    the repair here also upgrades existing student installations safely.
+    """
+    with psycopg.connect(TARGET_DSN) as conn, conn.cursor() as cur:
+        cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        cur.execute("CREATE EXTENSION IF NOT EXISTS postgis")
+        cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+
+
 def grant_warehouse_read_access() -> None:
     roles = sql.SQL(", ").join(map(sql.Identifier, ["metabase", "cloudbeaver", "jupyter", "langflow", "langgraph", "n8n", "student"]))
     with psycopg.connect(TARGET_DSN) as conn, conn.cursor() as cur:
@@ -59,6 +72,7 @@ def load_adventureworks() -> None:
         print("AdventureWorks is already loaded; skipping.", flush=True)
         return
 
+    ensure_target_extensions()
     print("Loading AdventureWorks into the warehouse database...", flush=True)
     source = urlparse(ADVENTUREWORKS_DSN)
     target = urlparse(TARGET_DSN)
