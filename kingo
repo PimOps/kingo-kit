@@ -4,25 +4,6 @@ set -Eeuo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$repo_dir"
 
-# Docker group changes normally require a new login session. If bootstrap has
-# already added this account to the group but the current shell predates that
-# change, transparently re-run this command with the docker group activated.
-if ! docker info >/dev/null 2>&1; then
-  current_user="$(id -un)"
-  docker_group_members="$(getent group docker 2>/dev/null | cut -d: -f4 || true)"
-  if [[ "${KINGO_GROUP_REEXEC:-0}" != "1" ]] \
-    && [[ ",${docker_group_members}," == *",${current_user},"* ]] \
-    && command -v sg >/dev/null 2>&1; then
-    printf -v reexec_command '%q ' "$repo_dir/kingo" "$@"
-    exec sg docker -c "KINGO_GROUP_REEXEC=1 $reexec_command"
-  fi
-
-  echo "Your account cannot access Docker yet." >&2
-  echo "Repair it once with: sudo usermod -aG docker ${current_user}" >&2
-  echo "Then log out and back in, or reboot Ubuntu." >&2
-  exit 1
-fi
-
 if [[ ! -f .env ]]; then
   "$repo_dir/scripts/generate-env.sh"
 fi
@@ -47,10 +28,71 @@ Commands:
   logs [service]  Follow logs for all services or one service
   urls            Show browser URLs and local login information
   credentials     Show database and application credentials from .env
+  doctor          Diagnose Docker access and installation status
   samples         Load/retry AdventureWorks and WideWorldImportersDW
   psql            Open psql in the warehouse as the postgres administrator
   reset --yes     Delete all Kingo Kit containers and data volumes
 EOF
+}
+
+ensure_docker_access() {
+  if docker info >/dev/null 2>&1; then
+    return
+  fi
+
+  local current_user account_groups docker_error
+  current_user="$(id -un)"
+  # Supplying the username asks the account database, so this sees a newly
+  # assigned supplementary group even when the current shell predates it.
+  account_groups="$(id -nG "$current_user" 2>/dev/null || true)"
+  if [[ "${KINGO_GROUP_REEXEC:-0}" != "1" ]] \
+    && [[ " ${account_groups} " == *" docker "* ]] \
+    && command -v sg >/dev/null 2>&1; then
+    printf -v reexec_command '%q ' "$repo_dir/kingo" "$@"
+    exec sg docker -c "KINGO_GROUP_REEXEC=1 $reexec_command"
+  fi
+
+  docker_error="$(docker info 2>&1 | tail -n 3 || true)"
+  echo "Kingo Kit cannot access the Docker daemon." >&2
+  if [[ " ${account_groups} " != *" docker "* ]]; then
+    echo "The account '${current_user}' is not assigned to the docker group." >&2
+    echo "Repair it once with: sudo usermod -aG docker ${current_user}" >&2
+    echo "Then reboot Ubuntu (a reboot avoids stale desktop login sessions)." >&2
+  else
+    echo "The account is assigned to the docker group, so this is a daemon or socket problem." >&2
+    echo "Run './kingo doctor' for the exact state." >&2
+  fi
+  [[ -z "$docker_error" ]] || printf 'Docker reported:\n%s\n' "$docker_error" >&2
+  exit 1
+}
+
+doctor() {
+  local current_user account_groups
+  current_user="$(id -un)"
+  account_groups="$(id -nG "$current_user" 2>/dev/null || true)"
+  echo "User:            ${current_user}"
+  echo "Account groups:  ${account_groups:-unavailable}"
+  echo "Session groups:  $(id -nG 2>/dev/null || echo unavailable)"
+  echo "Docker CLI:      $(command -v docker 2>/dev/null || echo missing)"
+  if docker compose version >/dev/null 2>&1; then
+    echo "Docker Compose:  available"
+  else
+    echo "Docker Compose:  unavailable"
+  fi
+  if command -v systemctl >/dev/null 2>&1; then
+    echo "Docker service:  $(systemctl is-active docker 2>/dev/null || echo unavailable)"
+  fi
+  if [[ -S /var/run/docker.sock ]]; then
+    echo "Docker socket:   $(ls -l /var/run/docker.sock)"
+  else
+    echo "Docker socket:   missing"
+  fi
+  if docker info >/dev/null 2>&1; then
+    echo "Docker API:      accessible"
+  else
+    echo "Docker API:      inaccessible"
+    docker info 2>&1 | tail -n 3
+  fi
 }
 
 host_for_urls="localhost"
@@ -60,11 +102,11 @@ if [[ "${BIND_ADDRESS:-127.0.0.1}" == "0.0.0.0" ]]; then
 fi
 
 case "${1:-}" in
-  up) "${compose[@]}" up -d --build ;;
-  down) "${compose[@]}" down ;;
-  restart) "${compose[@]}" restart ;;
-  status) "${compose[@]}" ps ;;
-  logs) shift; "${compose[@]}" logs --follow --tail=100 "$@" ;;
+  up) ensure_docker_access "$@"; "${compose[@]}" up -d --build ;;
+  down) ensure_docker_access "$@"; "${compose[@]}" down ;;
+  restart) ensure_docker_access "$@"; "${compose[@]}" restart ;;
+  status) ensure_docker_access "$@"; "${compose[@]}" ps ;;
+  logs) ensure_docker_access "$@"; shift; "${compose[@]}" logs --follow --tail=100 "$@" ;;
   urls)
     cat <<EOF
 JupyterLab:  http://${host_for_urls}:${JUPYTER_PORT:-8888}  (token: ${JUPYTER_TOKEN})
@@ -87,12 +129,15 @@ CloudBeaver web login: ${CLOUDBEAVER_ADMIN_USER:-kingo} / ${CLOUDBEAVER_ADMIN_PA
 Jupyter token: ${JUPYTER_TOKEN}
 EOF
     ;;
+  doctor) doctor ;;
   samples)
+    ensure_docker_access "$@"
     "${compose[@]}" up -d postgres
     "${compose[@]}" --profile samples run --rm --build sample-loader
     "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
     ;;
   psql)
+    ensure_docker_access "$@"
     "${compose[@]}" exec postgres psql -U postgres -d warehouse
     ;;
   reset)
@@ -101,6 +146,7 @@ EOF
       echo "Run './kingo reset --yes' only if that is what you want." >&2
       exit 2
     fi
+    ensure_docker_access "$@"
     "${compose[@]}" --profile samples down --volumes --remove-orphans
     ;;
   -h|--help|help|"") usage ;;

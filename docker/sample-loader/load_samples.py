@@ -183,7 +183,12 @@ def load_parquet_url(conn: psycopg.Connection, table_name: str, url: str, create
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 downloaded.write(chunk)
             downloaded.flush()
-            parquet = pq.ParquetFile(downloaded.name)
+            # Microsoft's Spark-generated files use legacy INT96 timestamps.
+            # Arrow otherwise reads them as nanoseconds, whose range ends in
+            # 2262, while WWI uses 9999-12-31 as an open-ended ValidTo value.
+            # PostgreSQL timestamps use microsecond precision, which preserves
+            # that sentinel without overflow.
+            parquet = pq.ParquetFile(downloaded.name, coerce_int96_timestamp_unit="us")
             arrow_schema = parquet.schema_arrow
             columns = [clean_name(name) for name in arrow_schema.names]
 

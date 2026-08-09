@@ -72,10 +72,16 @@ else
   echo "[2/6] Docker Compose is already available."
 fi
 
-if ! id -nG "$USER" | tr ' ' '\n' | grep -qx docker; then
-  sudo usermod -aG docker "$USER"
-  echo "Added $USER to the docker group (effective after the next login)."
+install_user="$(id -un)"
+# Always reconcile the account database. Checking only the current process's
+# groups can incorrectly skip this after Docker or a desktop session changes.
+sudo groupadd --force docker
+sudo usermod -aG docker "$install_user"
+if ! id -nG "$install_user" | tr ' ' '\n' | grep -qx docker; then
+  echo "Could not add $install_user to the docker group." >&2
+  exit 1
 fi
+echo "Confirmed $install_user is assigned to the docker group."
 
 if [[ "$skip_ollama" == false ]]; then
   if command -v ollama >/dev/null 2>&1; then
