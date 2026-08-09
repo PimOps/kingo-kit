@@ -1,10 +1,9 @@
 {
   "policies": {
     "Homepage": {
-      "URL": "https://kkportal.askkingo.ai",
+      "URL": "https://www.askkingo.ai",
       "Locked": false,
       "StartPage": "homepage"
     }
   }
 }
-

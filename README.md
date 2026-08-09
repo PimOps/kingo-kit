@@ -13,7 +13,7 @@ The stack includes:
 - AdventureWorks and WideWorldImportersDW sample data in PostgreSQL
 - Host-native Ollama, ready to configure Claude Code with `ollama launch claude`
 - Kingo Kit's SKKU-green hanok wallpaper on Ubuntu Desktop
-- Firefox homepage configured as <https://kkportal.askkingo.ai>
+- Firefox homepage configured as <https://www.askkingo.ai>
 
 ## Quick start on fresh Ubuntu
 
@@ -35,7 +35,9 @@ cd kingo-kit
 
 The installer uses Docker Engine on both Server and Desktop. Docker Desktop is unnecessary on Ubuntu for this stack and consumes additional resources. On Ubuntu Desktop, open the URLs in Firefox; on Ubuntu Server, use SSH port forwarding or set up VM port forwarding as described below.
 
-On Ubuntu Desktop, the installer copies the Kingo Kit wallpaper to `/usr/local/share/backgrounds` and applies it to the student account for light and dark modes. Ubuntu Server safely skips the GNOME setting. Firefox receives an unlocked system policy that makes <https://kkportal.askkingo.ai> its homepage and startup page while still allowing a student to change it.
+On Ubuntu Desktop, the installer copies the Kingo Kit wallpaper to `/usr/local/share/backgrounds` and applies it to the student account for light and dark modes. Ubuntu Server safely skips the GNOME setting. Firefox receives an unlocked system policy that makes [www.askkingo.ai](https://www.askkingo.ai) its homepage and startup page while still allowing a student to change it.
+
+The AskKingo homepage is the students' launch portal for Kingo Kit. It can provide links to the containerized applications, classroom instructions, troubleshooting guidance, and course updates. Because this information is hosted on the website, instructors can update it centrally without changing the repository or reinstalling anything on the students' Ubuntu machines.
 
 The first run downloads several large images and both datasets. It can take 10–30 minutes depending on the connection. It is safe to rerun the installer.
 

@@ -63,5 +63,4 @@ if [[ -f "$firefox_policy_target" ]] && command -v jq >/dev/null 2>&1; then
 else
   sudo install -m 0644 "$firefox_policy_source" "$firefox_policy_target"
 fi
-echo "Firefox will open https://kkportal.askkingo.ai as its homepage."
-
+echo "Firefox will open https://www.askkingo.ai as its homepage."
