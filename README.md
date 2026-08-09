@@ -35,6 +35,8 @@ cd kingo-kit
 
 The installer uses Docker Engine on both Server and Desktop. Docker Desktop is unnecessary on Ubuntu for this stack and consumes additional resources. On Ubuntu Desktop, open the URLs in Firefox; on Ubuntu Server, use SSH port forwarding or set up VM port forwarding as described below.
 
+For the recommended macOS development workflow—including VMware Fusion networking, SSH keys, connection aliases, app tunnels, remote editing, and troubleshooting—see [docs/development.md](docs/development.md).
+
 On Ubuntu Desktop, the installer copies the Kingo Kit wallpaper to `/usr/local/share/backgrounds` and applies it to the student account for light and dark modes. Ubuntu Server safely skips the GNOME setting. Firefox receives an unlocked system policy that makes [www.askkingo.ai](https://www.askkingo.ai) its homepage and startup page while still allowing a student to change it.
 
 The AskKingo homepage is the students' launch portal for Kingo Kit. It can provide links to the containerized applications, classroom instructions, troubleshooting guidance, and course updates. Because this information is hosted on the website, instructors can update it centrally without changing the repository or reinstalling anything on the students' Ubuntu machines.
