@@ -77,11 +77,12 @@ ensure_docker_access() {
     return
   fi
 
-  local current_user account_groups docker_error
+  local current_user account_groups session_groups docker_error
   current_user="$(id -un)"
   # Supplying the username asks the account database, so this sees a newly
   # assigned supplementary group even when the current shell predates it.
   account_groups="$(id -nG "$current_user" 2>/dev/null || true)"
+  session_groups="$(id -nG 2>/dev/null || true)"
   if [[ "${KINGO_GROUP_REEXEC:-0}" != "1" ]] \
     && [[ " ${account_groups} " == *" docker "* ]] \
     && command -v sg >/dev/null 2>&1; then
@@ -95,6 +96,10 @@ ensure_docker_access() {
     echo "The account '${current_user}' is not assigned to the docker group." >&2
     echo "Repair it once with: sudo usermod -aG docker ${current_user}" >&2
     echo "Then reboot Ubuntu (a reboot avoids stale desktop login sessions)." >&2
+  elif [[ " ${session_groups} " != *" docker "* ]]; then
+    echo "The account is assigned to docker, but this login session has stale groups." >&2
+    echo "Activate it now with: newgrp docker" >&2
+    echo "Then rerun the command inside the new shell." >&2
   else
     echo "The account is assigned to the docker group, so this is a daemon or socket problem." >&2
     echo "Run './kingo doctor' for the exact state." >&2
@@ -104,12 +109,14 @@ ensure_docker_access() {
 }
 
 doctor() {
-  local current_user account_groups
+  local current_user account_groups session_groups docker_accessible=false
   current_user="$(id -un)"
   account_groups="$(id -nG "$current_user" 2>/dev/null || true)"
+  session_groups="$(id -nG 2>/dev/null || true)"
   echo "User:            ${current_user}"
   echo "Account groups:  ${account_groups:-unavailable}"
-  echo "Session groups:  $(id -nG 2>/dev/null || echo unavailable)"
+  echo "Session groups:  ${session_groups:-unavailable}"
+  echo "Group helper:    $(command -v sg 2>/dev/null || echo missing)"
   echo "Docker CLI:      $(command -v docker 2>/dev/null || echo missing)"
   if docker compose version >/dev/null 2>&1; then
     echo "Docker Compose:  available"
@@ -125,10 +132,23 @@ doctor() {
     echo "Docker socket:   missing"
   fi
   if docker info >/dev/null 2>&1; then
+    docker_accessible=true
     echo "Docker API:      accessible"
   else
     echo "Docker API:      inaccessible"
-    docker info 2>&1 | tail -n 3
+    docker info 2>&1 | tail -n 3 || true
+  fi
+
+  if [[ "$docker_accessible" == false ]]; then
+    echo
+    if [[ " ${account_groups} " == *" docker "* ]] && [[ " ${session_groups} " != *" docker "* ]]; then
+      echo "Diagnosis: the account is configured correctly, but this login session is stale."
+      echo "Run 'newgrp docker' now, or fully sign out of Ubuntu and sign in again."
+    elif [[ " ${account_groups} " != *" docker "* ]]; then
+      echo "Diagnosis: the account has not been added to the docker group."
+    else
+      echo "Diagnosis: group membership is active; inspect the daemon and socket error above."
+    fi
   fi
 }
 
@@ -198,8 +218,12 @@ EOF
     ;;
   doctor) doctor ;;
   health)
+    if [[ -z "${2:-}" ]]; then
+      echo "Usage: ./kingo health SERVICE" >&2
+      exit 2
+    fi
     ensure_docker_access "$@"
-    show_health "${2:-}"
+    show_health "$2"
     ;;
   docker)
     shift
