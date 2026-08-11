@@ -9,17 +9,18 @@ Two ways of installing and using the Kingo-Kit:
     
     - On MacOS: 
         ```
-        curl -LsSf https://kk.anskkingo.ai/install.sh | sh
+        curl -LsSf https://kingokit.anskkingo.ai/install.sh | sh
         ```
     - On Windows: 
         ```powershell
-        powershell -ExecutionPolicy ByPass -c "irm https://kk.anskkingo.ai/install.ps1"
+        powershell -ExecutionPolicy ByPass -c "irm https://kingokit.anskkingo.ai/install.ps1"
         ```
 
 
 After installation, students can control the Kingo-Kit environment through a terminal or command prompt. For example
 
-- `./kingo start` will start the Kingo-Kit environment, and 
-- `./kingo stop` will stop it. Students can also use
+- `./kingo start` will start the Kingo-Kit environment, and
 - `./kingo status` to check the current status of the environment and 
+- `./kingo urls` will display the URLs for accessing the various tools and services included in the Kingo-Kit
+- `./kingo stop` will stop it. Students can also use
 - `./kingo update` to update the Kingo-Kit to the latest version.
