@@ -48,7 +48,7 @@ fi
 
 echo "[1/6] Installing base packages..."
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl git jq openssl zstd
+sudo apt-get install -y ca-certificates curl git zstd
 
 if ! docker compose version >/dev/null 2>&1; then
   echo "[2/6] Installing Docker Engine and the Compose plugin..."

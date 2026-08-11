@@ -122,6 +122,8 @@ Host kingo-vm
     LocalForward 5678 127.0.0.1:5678
     LocalForward 3000 127.0.0.1:3000
     LocalForward 8978 127.0.0.1:8978
+    LocalForward 6333 127.0.0.1:6333
+    LocalForward 6334 127.0.0.1:6334
     LocalForward 5432 127.0.0.1:5432
 ```
 
@@ -138,6 +140,8 @@ While that SSH connection is open, the Kingo Kit services are available in the M
 - n8n: <http://localhost:5678>
 - Metabase: <http://localhost:3000>
 - CloudBeaver: <http://localhost:8978>
+- Qdrant dashboard: <http://localhost:6333/dashboard>
+- Qdrant gRPC: `localhost:6334`
 - PostgreSQL: `localhost:5432`
 
 These tunnels preserve Kingo Kit's safer `BIND_ADDRESS=127.0.0.1` default. There is no need to expose the classroom services to the LAN with `0.0.0.0`.

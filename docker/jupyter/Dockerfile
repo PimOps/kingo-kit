@@ -7,8 +7,8 @@ RUN pip install --no-cache-dir \
       "sqlalchemy>=2.0,<3" \
       "psycopg[binary]>=3.2,<4" \
       "pgvector>=0.3,<1" \
+      "qdrant-client>=1.15,<2" \
       "matplotlib>=3.9,<4" \
       "seaborn>=0.13,<1" \
       "scikit-learn>=1.5,<2" \
       "duckdb>=1.2,<2"
-

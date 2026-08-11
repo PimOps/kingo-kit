@@ -73,6 +73,24 @@ df = pd.read_sql("select * from wwi.dimension_date limit 10", engine)
 df
 ```
 
+## Qdrant
+
+Containers reach Qdrant's REST API at `http://qdrant:6333` and its gRPC API at `qdrant:6334`. Programs running on Ubuntu or through the SSH tunnels use `http://localhost:6333`. The web dashboard is available at <http://localhost:6333/dashboard>.
+
+JupyterLab includes the official Python client and receives `QDRANT_URL` automatically:
+
+```python
+import os
+from qdrant_client import QdrantClient
+
+qdrant = QdrantClient(url=os.environ["QDRANT_URL"])
+qdrant.get_collections()
+```
+
+Langflow and n8n also receive `QDRANT_URL=http://qdrant:6333`. Use that value when configuring their Qdrant components or credentials. The local classroom instance has no API key and remains bound to `127.0.0.1` unless an instructor explicitly changes `BIND_ADDRESS`.
+
+Qdrant stores vectors supplied by a client. It does not create embeddings itself, download an embedding model, or run a local LLM.
+
 ## Schema map
 
 | Database | Schema(s) | Purpose |

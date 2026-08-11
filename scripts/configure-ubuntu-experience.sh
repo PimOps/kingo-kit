@@ -52,15 +52,7 @@ fi
 
 echo "Configuring the Firefox homepage..."
 sudo install -d -m 0755 "$firefox_policy_dir"
-if [[ -f "$firefox_policy_target" ]] && command -v jq >/dev/null 2>&1; then
-  merged_policy="$(mktemp)"
-  trap 'rm -f "$merged_policy"' EXIT
-  jq -s '.[0] * {policies: ((.[0].policies // {}) * (.[1].policies // {}))}' \
-    "$firefox_policy_target" "$firefox_policy_source" >"$merged_policy"
-  sudo install -m 0644 "$merged_policy" "$firefox_policy_target"
-  rm -f "$merged_policy"
-  trap - EXIT
-else
-  sudo install -m 0644 "$firefox_policy_source" "$firefox_policy_target"
-fi
+# This file is managed by Kingo Kit. Installing the complete policy keeps the
+# desktop setup deterministic without adding a JSON processor dependency.
+sudo install -m 0644 "$firefox_policy_source" "$firefox_policy_target"
 echo "Firefox will open https://www.askkingo.ai as its homepage."

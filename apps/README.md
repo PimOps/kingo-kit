@@ -8,6 +8,7 @@ Each Kingo Kit application has an independent `compose.yaml`. Students should no
 ./kingo app jupyter status
 ./kingo app jupyter logs
 ./kingo app jupyter down
+./kingo app qdrant up
 ```
 
 Maintainers can invoke an application file directly from the repository root. Create the shared network once, use the root environment file, and retain the `kingo-kit` project name so the command manages the same containers and volumes as the aggregate stack:
@@ -16,7 +17,6 @@ Maintainers can invoke an application file directly from the repository root. Cr
 docker network inspect kingo-kit >/dev/null 2>&1 || docker network create kingo-kit
 docker compose \
   --project-name kingo-kit \
-  --project-directory . \
   --env-file .env \
   --file apps/jupyter/compose.yaml \
   up -d
