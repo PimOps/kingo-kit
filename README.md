@@ -116,6 +116,18 @@ See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intend
 
 Start with `notebooks/00_kingo_kit_welcome.ipynb` in JupyterLab.
 
+## Shared student files
+
+The launcher creates a Git-ignored `kingokit/` folder in the cloned repository. Files placed there remain ordinary host files, so students can open and save them with Finder, Windows Explorer, or Ubuntu's Files application while also using them inside the containers:
+
+| Application | Path inside the container |
+|---|---|
+| JupyterLab | `/home/jovyan/work/kingokit` (shown as `kingokit` in the file browser) |
+| Langflow | `/app/kingokit` |
+| n8n | `/home/node/kingokit` |
+
+The shared folder survives `./kingo down` and `./kingo reset --yes` because it is not a Docker volume. Its contents are intentionally excluded from Git so students do not accidentally commit personal datasets or generated files.
+
 ## Database design
 
 There are three PostgreSQL databases:
@@ -180,7 +192,7 @@ To permanently remove all container data and start over:
 ./kingo reset --yes
 ```
 
-This deletes databases, n8n workflows, Langflow state, and web-app settings. Files saved in the repository's `notebooks/` directory remain.
+This deletes databases, n8n workflows, Langflow state, and web-app settings. Files saved in the repository's `notebooks/` and `kingokit/` directories remain.
 
 ## Troubleshooting
 

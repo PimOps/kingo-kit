@@ -14,6 +14,12 @@ set -a
 source .env
 set +a
 
+shared_dir="$repo_dir/kingokit"
+mkdir -p "$shared_dir"
+# The main classroom containers run as an unprivileged user. Allow them to
+# create files in this local-only exchange folder on Linux and Docker Desktop.
+chmod a+rwx "$shared_dir"
+
 compose=(docker compose --project-directory "$repo_dir")
 
 usage() {
@@ -285,6 +291,7 @@ EOF
     fi
     ensure_docker_access "$@"
     "${compose[@]}" --profile samples down --volumes --remove-orphans
+    echo "Shared files in $shared_dir were preserved."
     ;;
   -h|--help|help|"") usage ;;
   *) echo "Unknown command: $1" >&2; usage >&2; exit 2 ;;

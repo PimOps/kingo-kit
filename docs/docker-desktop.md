@@ -47,6 +47,8 @@ Open the application links shown by:
 ./kingo urls
 ```
 
+The first launcher run also creates `kingokit/` inside the repository. It is a shared host folder mounted into JupyterLab, Langflow, and n8n, so files saved by those containers are available directly in Finder or Windows Explorer.
+
 Do not run `scripts/bootstrap-ubuntu.sh` on macOS.
 
 ## Windows setup: recommended WSL 2 workflow

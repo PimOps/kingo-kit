@@ -119,6 +119,10 @@ else
 fi
 
 echo "[6/6] Starting Kingo Kit..."
+shared_dir="$repo_dir/kingokit"
+mkdir -p "$shared_dir"
+chmod a+rwx "$shared_dir"
+echo "Created the shared student folder: $shared_dir"
 if ! "${docker_command[@]}" network inspect kingo-kit >/dev/null 2>&1; then
   "${docker_command[@]}" network create kingo-kit >/dev/null
 fi
