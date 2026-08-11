@@ -5,6 +5,7 @@ Kingo Kit is the one-command data and AI lab for students at Sungkyunkwan Univer
 The stack includes:
 
 - PostgreSQL 17 with pgvector, configured as a learning/data-warehouse server
+- Qdrant 1.19.0 for dedicated vector search and retrieval exercises
 - JupyterLab with pandas, Polars, SQLAlchemy, psycopg, pgvector, DuckDB, and common data-science libraries
 - Langflow for visual AI workflows
 - n8n for workflow automation
@@ -37,6 +38,8 @@ The installer uses Docker Engine on both Server and Desktop. Docker Desktop is u
 
 For the recommended macOS development workflow—including VMware Fusion networking, SSH keys, connection aliases, app tunnels, remote editing, and troubleshooting—see [docs/development.md](docs/development.md).
 
+Students who prefer Docker Desktop on macOS or Windows can run the same application stack without a separate Ubuntu VM. See [docs/docker-desktop.md](docs/docker-desktop.md) for compatibility, installation, and platform differences.
+
 On Ubuntu Desktop, the installer copies the Kingo Kit wallpaper to `/usr/local/share/backgrounds` and applies it to the student account for light and dark modes. Ubuntu Server safely skips the GNOME setting. Firefox receives an unlocked system policy that makes [www.askkingo.ai](https://www.askkingo.ai) its homepage and startup page while still allowing a student to change it.
 
 The AskKingo homepage is the students' launch portal for Kingo Kit. It can provide links to the containerized applications, classroom instructions, troubleshooting guidance, and course updates. Because this information is hosted on the website, instructors can update it centrally without changing the repository or reinstalling anything on the students' Ubuntu machines.
@@ -64,6 +67,7 @@ ollama launch claude
 ./kingo credentials        # local classroom credentials
 ./kingo logs n8n           # follow one service's logs
 ./kingo app jupyter up     # manage only one application
+./kingo app qdrant up      # start only Qdrant
 ./kingo app metabase logs  # follow one application's logs
 ./kingo docker ps          # Docker CLI through the group-access fallback
 ./kingo samples            # retry/finish sample-data loading
@@ -84,6 +88,7 @@ Every application has its own folder and standalone Compose file:
 | `apps/n8n/` | n8n |
 | `apps/metabase/` | Metabase and its automatic warehouse setup helper |
 | `apps/cloudbeaver/` | CloudBeaver |
+| `apps/qdrant/` | Qdrant vector database and persistent vector storage |
 | `apps/sample-data/` | One-shot AdventureWorks and WWI import tooling |
 
 The root `compose.yaml` includes these files to retain the simple `./kingo up` whole-lab workflow. All application files connect to the shared external `kingo-kit` Docker network, and their explicitly named volumes preserve compatibility with existing Kingo Kit installations. Use `./kingo app NAME ACTION` to operate one application without having to remember Compose paths or project options; supported actions are `up`, `down`, `restart`, `status`, and `logs`.
@@ -106,9 +111,22 @@ See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intend
 | n8n | <http://localhost:5678> | Create the local owner on first visit |
 | Metabase | <http://localhost:3000> | From `./kingo credentials` |
 | CloudBeaver | <http://localhost:8978> | From `./kingo credentials` |
+| Qdrant dashboard | <http://localhost:6333/dashboard> | Local classroom instance; no login |
 | PostgreSQL | `localhost:5432` | From `./kingo credentials` |
 
 Start with `notebooks/00_kingo_kit_welcome.ipynb` in JupyterLab.
+
+## Shared student files
+
+The launcher creates a Git-ignored `kingokit/` folder in the cloned repository. Files placed there remain ordinary host files, so students can open and save them with Finder, Windows Explorer, or Ubuntu's Files application while also using them inside the containers:
+
+| Application | Path inside the container |
+|---|---|
+| JupyterLab | `/home/jovyan/work/kingokit` (shown as `kingokit` in the file browser) |
+| Langflow | `/app/kingokit` |
+| n8n | `/home/node/kingokit` |
+
+The shared folder survives `./kingo down` and `./kingo reset --yes` because it is not a Docker volume. Its contents are intentionally excluded from Git so students do not accidentally commit personal datasets or generated files.
 
 ## Database design
 
@@ -132,10 +150,14 @@ ssh -L 8888:localhost:8888 \
     -L 5678:localhost:5678 \
     -L 3000:localhost:3000 \
     -L 8978:localhost:8978 \
+    -L 6333:localhost:6333 \
+    -L 6334:localhost:6334 \
     -L 5432:localhost:5432 student@UBUNTU_IP
 ```
 
 For a trusted, firewalled classroom/bridged network, changing `BIND_ADDRESS=0.0.0.0` exposes the services on the Ubuntu machine's IP. Do not do this on a public network: these are local teaching services, not a hardened internet deployment.
+
+Qdrant is intentionally unauthenticated for local classroom use and is bound to loopback by default. It stores and searches vectors but does not generate embeddings, run an LLM, or download any model.
 
 ## Installation options
 
@@ -170,7 +192,7 @@ To permanently remove all container data and start over:
 ./kingo reset --yes
 ```
 
-This deletes databases, n8n workflows, Langflow state, and web-app settings. Files saved in the repository's `notebooks/` directory remain.
+This deletes databases, n8n workflows, Langflow state, and web-app settings. Files saved in the repository's `notebooks/` and `kingokit/` directories remain.
 
 ## Troubleshooting
 

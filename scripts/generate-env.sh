@@ -13,8 +13,13 @@ cp "$repo_dir/.env.example" "$env_file"
 
 random_secret() {
   # Hex is URL-, YAML-, SQL-, and shell-safe, which matters because these values
-  # are passed through all four layers.
-  openssl rand -hex "$1"
+  # are passed through all four layers. /dev/urandom and od are standard on
+  # Ubuntu, macOS, and WSL, so no separate crypto package is needed.
+  if [[ ! -r /dev/urandom ]] || ! command -v od >/dev/null 2>&1; then
+    echo "Cannot generate credentials: /dev/urandom and the standard od utility are required." >&2
+    return 1
+  fi
+  LC_ALL=C od -An -N "$1" -tx1 /dev/urandom | tr -d ' \n'
 }
 
 replace_value() {
@@ -38,4 +43,3 @@ replace_value CLOUDBEAVER_ADMIN_PASSWORD "$(random_secret 18)"
 rm -f "$env_file.bak"
 chmod 600 "$env_file"
 echo "Created $env_file with random local credentials."
-

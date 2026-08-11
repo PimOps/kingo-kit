@@ -2,9 +2,9 @@
 set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-wallpaper_source="$repo_dir/images/kingo-kit-wallpaper.png"
+wallpaper_source="$repo_dir/images/SKK GSB 1.png"
 wallpaper_dir="/usr/local/share/backgrounds"
-wallpaper_target="$wallpaper_dir/kingo-kit-wallpaper.png"
+wallpaper_target="$wallpaper_dir/skku-gsb-1.png"
 firefox_policy_source="$repo_dir/config/firefox/policies.json"
 firefox_policy_dir="/etc/firefox/policies"
 firefox_policy_target="$firefox_policy_dir/policies.json"
@@ -52,15 +52,7 @@ fi
 
 echo "Configuring the Firefox homepage..."
 sudo install -d -m 0755 "$firefox_policy_dir"
-if [[ -f "$firefox_policy_target" ]] && command -v jq >/dev/null 2>&1; then
-  merged_policy="$(mktemp)"
-  trap 'rm -f "$merged_policy"' EXIT
-  jq -s '.[0] * {policies: ((.[0].policies // {}) * (.[1].policies // {}))}' \
-    "$firefox_policy_target" "$firefox_policy_source" >"$merged_policy"
-  sudo install -m 0644 "$merged_policy" "$firefox_policy_target"
-  rm -f "$merged_policy"
-  trap - EXIT
-else
-  sudo install -m 0644 "$firefox_policy_source" "$firefox_policy_target"
-fi
+# This file is managed by Kingo Kit. Installing the complete policy keeps the
+# desktop setup deterministic without adding a JSON processor dependency.
+sudo install -m 0644 "$firefox_policy_source" "$firefox_policy_target"
 echo "Firefox will open https://www.askkingo.ai as its homepage."

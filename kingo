@@ -14,6 +14,12 @@ set -a
 source .env
 set +a
 
+shared_dir="$repo_dir/kingokit"
+mkdir -p "$shared_dir"
+# The main classroom containers run as an unprivileged user. Allow them to
+# create files in this local-only exchange folder on Linux and Docker Desktop.
+chmod a+rwx "$shared_dir"
+
 compose=(docker compose --project-directory "$repo_dir")
 
 usage() {
@@ -53,10 +59,10 @@ reconcile_postgres() {
 run_app() {
   local app_name="${1:-}" action="${2:-status}"
   case "$app_name" in
-    postgres|jupyter|langflow|n8n|metabase|cloudbeaver) ;;
+    postgres|jupyter|langflow|n8n|metabase|cloudbeaver|qdrant) ;;
     *)
       echo "Unknown app: ${app_name:-<missing>}" >&2
-      echo "Available apps: postgres, jupyter, langflow, n8n, metabase, cloudbeaver" >&2
+      echo "Available apps: postgres, jupyter, langflow, n8n, metabase, cloudbeaver, qdrant" >&2
       exit 2
       ;;
   esac
@@ -68,7 +74,7 @@ run_app() {
   ensure_docker_access app "$app_name" "$action"
   ensure_kingo_network
   local app_file="$repo_dir/apps/$app_name/compose.yaml"
-  local app_compose=(docker compose --project-directory "$repo_dir" --env-file "$repo_dir/.env" -f "$app_file")
+  local app_compose=(docker compose --project-name "${COMPOSE_PROJECT_NAME:-kingo-kit}" --env-file "$repo_dir/.env" -f "$app_file")
   case "$action" in
     up)
       if [[ "$app_name" == "metabase" ]]; then
@@ -89,8 +95,9 @@ ensure_docker_access() {
     return
   fi
 
-  local current_user account_groups session_groups docker_error
+  local current_user account_groups session_groups docker_error host_os
   current_user="$(id -un)"
+  host_os="$(uname -s)"
   # Supplying the username asks the account database, so this sees a newly
   # assigned supplementary group even when the current shell predates it.
   account_groups="$(id -nG "$current_user" 2>/dev/null || true)"
@@ -104,7 +111,10 @@ ensure_docker_access() {
 
   docker_error="$(docker info 2>&1 | tail -n 3 || true)"
   echo "Kingo Kit cannot access the Docker daemon." >&2
-  if [[ " ${account_groups} " != *" docker "* ]]; then
+  if [[ "$host_os" == "Darwin" ]]; then
+    echo "On macOS, start Docker Desktop and wait until it reports that Docker is running." >&2
+    echo "Docker group changes and sudo are not needed on macOS." >&2
+  elif [[ " ${account_groups} " != *" docker "* ]]; then
     echo "The account '${current_user}' is not assigned to the docker group." >&2
     echo "Repair it once with: sudo usermod -aG docker ${current_user}" >&2
     echo "Then reboot Ubuntu (a reboot avoids stale desktop login sessions)." >&2
@@ -121,8 +131,10 @@ ensure_docker_access() {
 }
 
 doctor() {
-  local current_user account_groups session_groups docker_accessible=false
+  local current_user account_groups session_groups docker_accessible=false host_os
   current_user="$(id -un)"
+  host_os="$(uname -s)"
+  echo "Host OS:         ${host_os}"
   account_groups="$(id -nG "$current_user" 2>/dev/null || true)"
   session_groups="$(id -nG 2>/dev/null || true)"
   echo "User:            ${current_user}"
@@ -153,7 +165,10 @@ doctor() {
 
   if [[ "$docker_accessible" == false ]]; then
     echo
-    if [[ " ${account_groups} " == *" docker "* ]] && [[ " ${session_groups} " != *" docker "* ]]; then
+    if [[ "$host_os" == "Darwin" ]]; then
+      echo "Diagnosis: Docker Desktop is stopped, still starting, or its socket is inaccessible."
+      echo "Start Docker Desktop; do not add a macOS account to a docker group."
+    elif [[ " ${account_groups} " == *" docker "* ]] && [[ " ${session_groups} " != *" docker "* ]]; then
       echo "Diagnosis: the account is configured correctly, but this login session is stale."
       echo "Run 'newgrp docker' now, or fully sign out of Ubuntu and sign in again."
     elif [[ " ${account_groups} " != *" docker "* ]]; then
@@ -183,7 +198,14 @@ show_health() {
   fi
 
   echo "Container state:"
-  docker inspect --format '{{json .State}}' "$container_id" | jq '{status: .Status, running: .Running, exit_code: .ExitCode, error: .Error, health: (.Health.Status // "not configured"), health_checks: ((.Health.Log // []) | map({started: .Start, exit_code: .ExitCode, output: .Output}) | .[-5:])}'
+  docker inspect --format 'Status: {{.State.Status}}
+Running: {{.State.Running}}
+Exit code: {{.State.ExitCode}}
+Error: {{if .State.Error}}{{.State.Error}}{{else}}none{{end}}
+Health: {{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}}
+{{if .State.Health}}Recent health checks:
+{{range .State.Health.Log}}- {{.Start}} (exit {{.ExitCode}})
+  {{.Output}}{{end}}{{end}}' "$container_id"
   echo
   echo "Recent $service logs:"
   "${compose[@]}" logs --no-color --tail=100 "$service"
@@ -214,6 +236,7 @@ Langflow:    http://${host_for_urls}:${LANGFLOW_PORT:-7860}
 n8n:         http://${host_for_urls}:${N8N_PORT:-5678}  (create your owner on first visit)
 Metabase:    http://${host_for_urls}:${METABASE_PORT:-3000}  (${METABASE_ADMIN_EMAIL})
 CloudBeaver: http://${host_for_urls}:${CLOUDBEAVER_PORT:-8978}  (${CLOUDBEAVER_ADMIN_USER:-kingo})
+Qdrant UI:   http://${host_for_urls}:${QDRANT_HTTP_PORT:-6333}/dashboard
 PostgreSQL:  ${host_for_urls}:${POSTGRES_PORT:-5432} / warehouse
 EOF
     ;;
@@ -268,6 +291,7 @@ EOF
     fi
     ensure_docker_access "$@"
     "${compose[@]}" --profile samples down --volumes --remove-orphans
+    echo "Shared files in $shared_dir were preserved."
     ;;
   -h|--help|help|"") usage ;;
   *) echo "Unknown command: $1" >&2; usage >&2; exit 2 ;;

@@ -16,5 +16,7 @@ include:
     env_file: .env
   - path: apps/cloudbeaver/compose.yaml
     env_file: .env
+  - path: apps/qdrant/compose.yaml
+    env_file: .env
   - path: apps/sample-data/compose.yaml
     env_file: .env

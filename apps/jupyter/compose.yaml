@@ -14,6 +14,7 @@ services:
       PGUSER: jupyter
       PGPASSWORD: ${JUPYTER_DB_PASSWORD}
       DATABASE_URL: postgresql+psycopg://jupyter:${JUPYTER_DB_PASSWORD}@postgres:5432/warehouse
+      QDRANT_URL: http://qdrant:6333
     command:
       - start-notebook.py
       - --ServerApp.token=${JUPYTER_TOKEN}
@@ -23,6 +24,7 @@ services:
       - "${BIND_ADDRESS:-127.0.0.1}:${JUPYTER_PORT:-8888}:8888"
     volumes:
       - ../../notebooks:/home/jovyan/work
+      - ../../kingokit:/home/jovyan/work/kingokit
       - jupyter-home:/home/jovyan/.jupyter
     networks: [kingo-jupyter]
 
