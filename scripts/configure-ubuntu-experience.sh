@@ -2,9 +2,9 @@
 set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-wallpaper_source="$repo_dir/images/kingo-kit-wallpaper.png"
+wallpaper_source="$repo_dir/images/SKK GSB 1.png"
 wallpaper_dir="/usr/local/share/backgrounds"
-wallpaper_target="$wallpaper_dir/kingo-kit-wallpaper.png"
+wallpaper_target="$wallpaper_dir/skku-gsb-1.png"
 firefox_policy_source="$repo_dir/config/firefox/policies.json"
 firefox_policy_dir="/etc/firefox/policies"
 firefox_policy_target="$firefox_policy_dir/policies.json"
