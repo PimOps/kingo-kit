@@ -50,6 +50,7 @@ echo "[1/6] Installing base packages..."
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl git zstd
 
+
 if ! docker compose version >/dev/null 2>&1; then
   echo "[2/6] Installing Docker Engine and the Compose plugin..."
   sudo install -m 0755 -d /etc/apt/keyrings
@@ -103,25 +104,37 @@ else
 fi
 
 echo "[4/6] Generating local credentials..."
-"$repo_dir/scripts/generate-env.sh"
+if [[ -f "$repo_dir/.kingokit-installed" ]]; then
+  state_dir="${XDG_CONFIG_HOME:-$HOME/.config}/kingokit"
+  mkdir -p "$state_dir"
+  KINGOKIT_ENV_FILE="$state_dir/.env" "$repo_dir/scripts/generate-env.sh"
+  env_file="$state_dir/.env"
+else
+  "$repo_dir/scripts/generate-env.sh"
+  env_file="$repo_dir/.env"
+fi
+export KINGOKIT_ENV_FILE="$env_file"
 
 echo "[5/6] Configuring the Ubuntu wallpaper and Firefox homepage..."
 "$repo_dir/scripts/configure-ubuntu-experience.sh"
+
+shared_dir="$HOME/Kingokit"
+# shellcheck source=lib/install-common.sh
+source "$repo_dir/scripts/lib/install-common.sh"
+create_shared_folder "$shared_dir"
+export KINGOKIT_SHARED_DIR="$shared_dir"
 
 # A fresh docker-group membership is not active in this shell, so use sudo only
 # when the normal account cannot yet access the daemon.
 if docker info >/dev/null 2>&1; then
   docker_command=(docker)
-  compose=(docker compose --project-directory "$repo_dir")
+  compose=(docker compose --project-directory "$repo_dir" --env-file "$env_file")
 else
   docker_command=(sudo docker)
-  compose=(sudo docker compose --project-directory "$repo_dir")
+  compose=(sudo env "KINGOKIT_SHARED_DIR=$shared_dir" "KINGOKIT_ENV_FILE=$env_file" docker compose --project-directory "$repo_dir" --env-file "$env_file")
 fi
 
 echo "[6/6] Starting Kingo Kit..."
-shared_dir="$repo_dir/kingokit"
-mkdir -p "$shared_dir"
-chmod a+rwx "$shared_dir"
 echo "Created the shared student folder: $shared_dir"
 if ! "${docker_command[@]}" network inspect kingo-kit >/dev/null 2>&1; then
   "${docker_command[@]}" network create kingo-kit >/dev/null
@@ -134,7 +147,7 @@ fi
 sample_load_failed=false
 if [[ "$skip_samples" == false ]]; then
   echo "Loading AdventureWorks and WideWorldImportersDW. This can take several minutes..."
-  if ! "${compose[@]}" --profile samples run --rm --build sample-loader; then
+  if ! "${compose[@]}" --profile samples run --name kingo-sample-loader --rm --build sample-loader; then
     sample_load_failed=true
     echo "Sample loading did not finish, but the Kingo Kit apps are running." >&2
     echo "Retry later with: $repo_dir/kingo samples" >&2

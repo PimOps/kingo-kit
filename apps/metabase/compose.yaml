@@ -1,10 +1,11 @@
 services:
   metabase:
+    container_name: kingo-metabase
     image: ${METABASE_IMAGE:-metabase/metabase:v0.63.x}
     restart: unless-stopped
     environment:
       MB_DB_TYPE: postgres
-      MB_DB_CONNECTION_URI: jdbc:postgresql://postgres:5432/metabase
+      MB_DB_CONNECTION_URI: jdbc:postgresql://kingo-postgres:5432/metabase
       MB_DB_USER: metabase
       MB_DB_PASS: ${METABASE_DB_PASSWORD}
       MB_SITE_NAME: SKKU Kingo Kit
@@ -18,9 +19,12 @@ services:
       timeout: 5s
       retries: 30
       start_period: 30s
-    networks: [kingo-metabase]
+    networks:
+      kingo-metabase:
+        aliases: [kingo-metabase]
 
   metabase-init:
+    container_name: kingo-metabase-init
     image: curlimages/curl:8.16.0
     restart: "no"
     environment:
@@ -33,7 +37,9 @@ services:
     depends_on:
       metabase:
         condition: service_healthy
-    networks: [kingo-metabase]
+    networks:
+      kingo-metabase:
+        aliases: [kingo-metabase-init]
 
 networks:
   kingo-metabase:

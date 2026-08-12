@@ -1,5 +1,6 @@
 services:
   jupyter:
+    container_name: kingo-jupyter
     build:
       context: ../..
       dockerfile: docker/jupyter/Dockerfile
@@ -7,26 +8,26 @@ services:
         JUPYTER_BASE_IMAGE: ${JUPYTER_BASE_IMAGE:-quay.io/jupyter/minimal-notebook:python-3.12}
     restart: unless-stopped
     environment:
-      JUPYTER_TOKEN: ${JUPYTER_TOKEN}
-      PGHOST: postgres
+      PGHOST: kingo-postgres
       PGPORT: 5432
       PGDATABASE: warehouse
       PGUSER: jupyter
       PGPASSWORD: ${JUPYTER_DB_PASSWORD}
-      DATABASE_URL: postgresql+psycopg://jupyter:${JUPYTER_DB_PASSWORD}@postgres:5432/warehouse
-      QDRANT_URL: http://qdrant:6333
+      DATABASE_URL: postgresql+psycopg://jupyter:${JUPYTER_DB_PASSWORD}@kingo-postgres:5432/warehouse
+      QDRANT_URL: http://kingo-qdrant:6333
     command:
       - start-notebook.py
-      - --ServerApp.token=${JUPYTER_TOKEN}
+      - --IdentityProvider.token=
       - --ServerApp.password=
-      - --ServerApp.allow_origin=*
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${JUPYTER_PORT:-8888}:8888"
     volumes:
-      - ../../notebooks:/home/jovyan/work
-      - ../../kingokit:/home/jovyan/work/kingokit
+      - ../../notebooks:/home/jovyan/examples:ro
+      - ${KINGOKIT_SHARED_DIR:?Set KINGOKIT_SHARED_DIR}:/home/jovyan/work
       - jupyter-home:/home/jovyan/.jupyter
-    networks: [kingo-jupyter]
+    networks:
+      kingo-jupyter:
+        aliases: [kingo-jupyter]
 
 volumes:
   jupyter-home:

@@ -1,5 +1,6 @@
 services:
   qdrant:
+    container_name: kingo-qdrant
     image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.19.0}
     restart: unless-stopped
     ports:
@@ -15,7 +16,8 @@ services:
       start_period: 10s
     networks:
       kingo-qdrant:
-        aliases: [qdrant]
+        # Keep the former generic alias for existing saved app connections.
+        aliases: [kingo-qdrant, qdrant]
 
 volumes:
   qdrant-storage:

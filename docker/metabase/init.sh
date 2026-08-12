@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-base_url="http://metabase:3000"
+base_url="http://kingo-metabase:3000"
 properties="$(curl --fail --silent --show-error "$base_url/api/session/properties")"
 setup_token="$(printf '%s' "$properties" | sed -n 's/.*"setup-token":"\([^"]*\)".*/\1/p')"
 
@@ -32,6 +32,5 @@ echo "Adding the Kingo Warehouse connection to Metabase..."
 curl --fail --silent --show-error -X POST "$base_url/api/database" \
   -H 'Content-Type: application/json' \
   -H "X-Metabase-Session: $session_id" \
-  --data "{\"engine\":\"postgres\",\"name\":\"Kingo Warehouse\",\"details\":{\"host\":\"postgres\",\"port\":5432,\"dbname\":\"warehouse\",\"user\":\"metabase\",\"password\":\"$METABASE_DB_PASSWORD\",\"ssl\":false},\"is_on_demand\":false,\"is_full_sync\":true,\"is_sample\":false}" >/dev/null
+  --data "{\"engine\":\"postgres\",\"name\":\"Kingo Warehouse\",\"details\":{\"host\":\"kingo-postgres\",\"port\":5432,\"dbname\":\"warehouse\",\"user\":\"metabase\",\"password\":\"$METABASE_DB_PASSWORD\",\"ssl\":false},\"is_on_demand\":false,\"is_full_sync\":true,\"is_sample\":false}" >/dev/null
 echo "Metabase provisioning complete."
-
