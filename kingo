@@ -62,6 +62,7 @@ Commands:
   psql            Open psql in the warehouse as the postgres administrator
   reset --yes     Factory-reset the apps and start a fresh stack
   uninstall       Remove Kingo Kit after confirmation (keeps ~/Kingokit)
+                  Add --keep-images (or -keepimages) to retain Docker images
 EOF
 }
 
@@ -279,14 +280,20 @@ start_stack() {
 }
 
 confirm_uninstall() {
-  if [[ "${2:-}" == "--yes" ]]; then
+  local assume_yes="$1" keep_images="$2"
+  if [[ "$assume_yes" == true ]]; then
     return
   fi
   if [[ ! -t 0 ]]; then
     echo "Uninstall needs confirmation. Run: kingo uninstall --yes" >&2
     return 1
   fi
-  echo "This removes all Kingo Kit containers, images, volumes, network, credentials, and installed application files."
+  if [[ "$keep_images" == true ]]; then
+    echo "This removes all Kingo Kit containers, volumes, network, credentials, and installed application files."
+    echo "Downloaded and locally built Docker images will be retained for a faster reinstall."
+  else
+    echo "This removes all Kingo Kit containers, images, volumes, network, credentials, and installed application files."
+  fi
   echo "Student files in $shared_dir will be retained."
   echo "Docker Desktop/Docker Engine will NOT be uninstalled."
   printf "Type 'uninstall' to continue: "
@@ -342,11 +349,28 @@ remove_installed_files() {
 }
 
 uninstall_kingo() {
-  confirm_uninstall "$@" || return
+  local assume_yes=false keep_images=false arg
+  for arg in "${@:2}"; do
+    case "$arg" in
+      --yes) assume_yes=true ;;
+      --keep-images|-keepimages|--keepimages) keep_images=true ;;
+      *)
+        echo "Unknown uninstall option: $arg" >&2
+        echo "Usage: kingo uninstall [--keep-images] [--yes]" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  confirm_uninstall "$assume_yes" "$keep_images" || return
   validate_installation_target || return
   ensure_docker_access "$@"
 
-  if ! "${compose[@]}" --profile samples down --volumes --rmi all --remove-orphans; then
+  local down_args=(--profile samples down --volumes --remove-orphans)
+  if [[ "$keep_images" == false ]]; then
+    down_args+=(--rmi all)
+  fi
+  if ! "${compose[@]}" "${down_args[@]}"; then
     echo "Docker could not remove every Kingo Kit resource." >&2
     echo "The Kingo command and application files were retained so you can retry." >&2
     return 1
@@ -362,6 +386,9 @@ uninstall_kingo() {
   remove_installed_files
   echo
   echo "Kingo Kit's Docker stack and local credentials were removed."
+  if [[ "$keep_images" == true ]]; then
+    echo "Docker images were retained for a faster reinstall."
+  fi
   echo "Docker Desktop/Docker Engine was NOT uninstalled."
   echo "Student files were retained in: $shared_dir"
   if [[ "$network_retained" == true ]]; then

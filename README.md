@@ -261,7 +261,17 @@ For a managed or non-interactive machine, confirmation can be supplied explicitl
 kingo uninstall --yes
 ```
 
-Uninstall removes all Kingo Kit containers, images, volumes, its Docker network, generated credentials, the terminal command, and the installed application files. It always retains the student's work in `~/Kingokit`. It does **not** uninstall Docker Desktop, Docker Engine, or WSL. On Ubuntu, it also retains the separately installed Ollama host application.
+During repeated installation testing, retain downloaded and locally built Docker
+images while removing the containers, volumes, credentials, and installed files:
+
+```bash
+kingo uninstall --keep-images
+```
+
+The shorter `-keepimages` spelling is also accepted. Combine either form with
+`--yes` for an unattended uninstall.
+
+By default, uninstall removes all Kingo Kit containers, images, volumes, its Docker network, generated credentials, the terminal command, and the installed application files. With `--keep-images`, only the images are retained. It always retains the student's work in `~/Kingokit`. It does **not** uninstall Docker Desktop, Docker Engine, or WSL. On Ubuntu, it also retains the separately installed Ollama host application.
 
 ## Troubleshooting
 
