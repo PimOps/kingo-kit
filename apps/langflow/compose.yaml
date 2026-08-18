@@ -10,7 +10,7 @@ services:
       LANGFLOW_DATABASE_URL: postgresql://langflow:${LANGFLOW_DB_PASSWORD}@kingo-postgres:5432/kingo?options=-csearch_path%3Dlangflow
       LANGFLOW_AUTO_LOGIN: ${LANGFLOW_AUTO_LOGIN:-true}
       LANGFLOW_SUPERUSER: ${LANGFLOW_SUPERUSER:-kingouser}
-      LANGFLOW_SUPERUSER_PASSWORD: ${LANGFLOW_SUPERUSER_PASSWORD:-change_me_later}
+      LANGFLOW_SUPERUSER_PASSWORD: ${LANGFLOW_SUPERUSER_PASSWORD:-Unique_Origin_Unique_Future1}
       LANGFLOW_NEW_USER_IS_ACTIVE: "true"
       QDRANT_URL: http://kingo-qdrant:6333
     ports:

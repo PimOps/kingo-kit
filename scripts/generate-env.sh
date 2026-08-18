@@ -54,15 +54,18 @@ ensure_secret JUPYTER_DB_PASSWORD 18
 ensure_secret JUPYTER_MCP_TOKEN 24
 ensure_secret LANGFLOW_SECRET_KEY 24
 ensure_secret N8N_ENCRYPTION_KEY 24
+# A shared, easy-to-remember classroom password. Plain phrases like
+# "change_me_later" are rejected by Metabase's password-strength check
+# ("password is too common"); this variant clears that bar.
 ensure_default STUDENT_DB_USER kingouser
-ensure_default STUDENT_DB_PASSWORD change_me_later
+ensure_default STUDENT_DB_PASSWORD Unique_Origin_Unique_Future1
 ensure_default LANGFLOW_AUTO_LOGIN true
 ensure_default LANGFLOW_SUPERUSER kingouser
-ensure_default LANGFLOW_SUPERUSER_PASSWORD change_me_later
+ensure_default LANGFLOW_SUPERUSER_PASSWORD Unique_Origin_Unique_Future1
 ensure_default METABASE_ADMIN_EMAIL user@kingo.local
-ensure_default METABASE_ADMIN_PASSWORD change_me_later
+ensure_default METABASE_ADMIN_PASSWORD Unique_Origin_Unique_Future1
 ensure_default CLOUDBEAVER_ADMIN_USER kingouser
-ensure_default CLOUDBEAVER_ADMIN_PASSWORD change_me_later
+ensure_default CLOUDBEAVER_ADMIN_PASSWORD Unique_Origin_Unique_Future1
 rm -f "$env_file.bak"
 chmod 600 "$env_file"
 if [[ "$created" == true ]]; then

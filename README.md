@@ -140,7 +140,7 @@ See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intend
 | JupyterLab | <http://localhost:8888> | No login required |
 | Jupyter MCP | <http://localhost:4040/mcp> | Bearer token from `kingo mcp` |
 | Langflow | <http://localhost:7860> | Auto-login classroom instance |
-| n8n | <http://localhost:5678> | `user@kingo.local` / `change_me_later` |
+| n8n | <http://localhost:5678> | Create an account on first visit |
 | Metabase | <http://localhost:3000> | From `./kingo credentials` |
 | CloudBeaver | <http://localhost:8978> | From `./kingo credentials` |
 | Qdrant dashboard | <http://localhost:6333/dashboard> | Local classroom instance; no login |
@@ -148,9 +148,9 @@ See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intend
 
 Fresh installations use the same classroom credentials wherever an application
 requires a conventional login: username `kingouser`, email `user@kingo.local`,
-and password `change_me_later`. Run `kingo credentials` to see which form each
-service uses. Internal service-to-service database passwords and the Jupyter MCP
-bearer token remain randomly generated.
+and password `Unique_Origin_Unique_Future1`. Run `kingo credentials` to see
+which form each service uses. Internal service-to-service database passwords
+and the Jupyter MCP bearer token remain randomly generated.
 
 Start with `jupyter_examples/00_kingo_kit_welcome.ipynb` in JupyterLab. It is a writable copy stored in `~/Kingokit/jupyter_examples` on the host.
 
