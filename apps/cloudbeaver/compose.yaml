@@ -6,7 +6,7 @@ services:
     environment:
       CB_SERVER_NAME: SKKU Kingo Kit
       CB_SERVER_URL: http://localhost:${CLOUDBEAVER_PORT:-8978}
-      CB_ADMIN_NAME: ${CLOUDBEAVER_ADMIN_USER:-kingo}
+      CB_ADMIN_NAME: ${CLOUDBEAVER_ADMIN_USER:-kingouser}
       CB_ADMIN_PASSWORD: ${CLOUDBEAVER_ADMIN_PASSWORD}
       CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS: "true"
     ports:

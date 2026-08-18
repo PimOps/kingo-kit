@@ -6,6 +6,10 @@ services:
       dockerfile: docker/jupyter/Dockerfile
       args:
         JUPYTER_BASE_IMAGE: ${JUPYTER_BASE_IMAGE:-quay.io/jupyter/minimal-notebook:python-3.12}
+      # Attestations embed a build timestamp, so a fully cached rebuild still
+      # changes the image digest and forces an unnecessary container recreate.
+      provenance: false
+      sbom: false
     restart: unless-stopped
     environment:
       PGHOST: kingo-postgres

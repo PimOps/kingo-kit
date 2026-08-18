@@ -12,7 +12,7 @@ The stack includes:
 - n8n for workflow automation
 - Metabase for business intelligence (pre-connected to the warehouse)
 - CloudBeaver for browser-based SQL and database exploration
-- AdventureWorks and WideWorldImportersDW sample data in PostgreSQL
+- AdventureWorks and WideWorldImportersDW sample data, loadable on demand into PostgreSQL
 - On Ubuntu only: host-native Ollama, ready to configure Claude Code with `ollama launch claude`
 - Kingo Kit's SKKU-green hanok wallpaper on Ubuntu Desktop
 - Firefox homepage configured as <https://www.askkingo.ai>
@@ -42,7 +42,7 @@ All three installers provide the same separation between the application and stu
 | Private configuration | `~/.config/kingokit` | `~/.config/kingokit` | `~/.config/kingokit` |
 | Terminal command | `/usr/local/bin/kingo` | `~/.local/bin/kingo` | `~/.local/bin/kingo` |
 
-The macOS and WSL installers do not install Docker Desktop themselves. They verify that it is running and explain what is missing. They do not install or configure host-native applications; Ollama integration is available only through the Ubuntu installer. Homebrew is not required. Use `--no-start` to install without starting containers or `--skip-samples` to postpone the sample database download.
+The macOS and WSL installers do not install Docker Desktop themselves. They verify that it is running and explain what is missing. They do not install or configure host-native applications; Ollama integration is available only through the Ubuntu installer. Homebrew is not required. Use `--no-start` to install without starting containers. Sample data is not loaded by the installers; run `kingo import wwi` or `kingo import adventureworks` afterward when needed.
 
 ## Quick start on fresh Ubuntu
 
@@ -72,7 +72,7 @@ On Ubuntu Desktop, the installer copies the Kingo Kit wallpaper to `/usr/local/s
 
 The AskKingo homepage is the students' launch portal for Kingo Kit. It can provide links to the containerized applications, classroom instructions, troubleshooting guidance, and course updates. Because this information is hosted on the website, instructors can update it centrally without changing the repository or reinstalling anything on the students' Ubuntu machines.
 
-The first run downloads several large images and both datasets. It can take 10–30 minutes depending on the connection. It is safe to rerun the installer.
+The first run downloads several large images and both datasets. It can take 10–30 minutes depending on the connection. The installer starts PostgreSQL first, waits for the web applications to be running, and imports the example databases only as its final step. The applications remain available while that import runs. It is safe to rerun the installer.
 
 After installation:
 
@@ -99,7 +99,8 @@ kingo app jupyter up     # manage only one application
 kingo app qdrant up      # start only Qdrant
 kingo app metabase logs  # follow one application's logs
 kingo docker ps          # Docker CLI through the group-access fallback
-kingo samples            # retry/finish sample-data loading
+kingo import wwi         # load WideWorldImportersDW
+kingo import adventureworks # load AdventureWorks
 kingo psql               # warehouse SQL prompt
 ```
 
@@ -139,11 +140,17 @@ See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intend
 | JupyterLab | <http://localhost:8888> | No login required |
 | Jupyter MCP | <http://localhost:4040/mcp> | Bearer token from `kingo mcp` |
 | Langflow | <http://localhost:7860> | Auto-login classroom instance |
-| n8n | <http://localhost:5678> | Create the local owner on first visit |
+| n8n | <http://localhost:5678> | Create an account on first visit |
 | Metabase | <http://localhost:3000> | From `./kingo credentials` |
 | CloudBeaver | <http://localhost:8978> | From `./kingo credentials` |
 | Qdrant dashboard | <http://localhost:6333/dashboard> | Local classroom instance; no login |
 | PostgreSQL | `localhost:5432` | From `./kingo credentials` |
+
+Fresh installations use the same classroom credentials wherever an application
+requires a conventional login: username `kingouser`, email `user@kingo.local`,
+and password `Unique_Origin_Unique_Future1`. Run `kingo credentials` to see
+which form each service uses. Internal service-to-service database passwords
+and the Jupyter MCP bearer token remain randomly generated.
 
 Start with `jupyter_examples/00_kingo_kit_welcome.ipynb` in JupyterLab. It is a writable copy stored in `~/Kingokit/jupyter_examples` on the host.
 
@@ -207,11 +214,10 @@ Qdrant is intentionally unauthenticated for local classroom use and is bound to 
 ## Installation options
 
 ```bash
-./scripts/install-ubuntu.sh --skip-samples
 ./scripts/install-ubuntu.sh --skip-ollama
 ```
 
-If samples were skipped or the download was interrupted, run `kingo samples` later. The loader records completed datasets and will not duplicate them.
+Sample data is not loaded automatically. Run `kingo import wwi` or `kingo import adventureworks` after the install finishes; each dataset is independently checkpointed and safe to retry.
 
 To reapply only the wallpaper and Firefox homepage configuration:
 
@@ -221,7 +227,9 @@ To reapply only the wallpaper and Firefox homepage configuration:
 
 ## Configuration and upgrades
 
-The first run creates `~/.config/kingokit/.env` from `.env.example` and generates random local passwords. Instructors can change ports, bind address, timezone, image versions, or credentials before starting the installed stack. When running directly from a development clone, `.env` remains in the repository and is ignored by Git.
+The first run creates `~/.config/kingokit/.env` from `.env.example`. The classroom-facing accounts use the shared defaults above, while internal service passwords and tokens are generated randomly. Instructors can change ports, bind address, timezone, image versions, or credentials before starting the installed stack. When running directly from a development clone, `.env` remains in the repository and is ignored by Git.
+
+Students can change the n8n, Metabase, and CloudBeaver passwords in each application's account settings. Langflow remains in auto-login mode by default; set `LANGFLOW_AUTO_LOGIN=false` and change its superuser values in `.env` to require a login. To change the classroom PostgreSQL login, edit `STUDENT_DB_USER` and `STUDENT_DB_PASSWORD` in `.env`, then run `kingo up`; Kingo Kit reconciles that role without deleting data. Environment values initialize fresh web-app volumes but intentionally do not overwrite accounts already changed through an application's UI.
 
 Before dependent applications start, `./kingo up` idempotently reconciles PostgreSQL's required extensions (`vector`, `citext`, PostGIS, and `uuid-ossp`). This also upgrades existing student volumes safely when a newer application version introduces an extension requirement.
 
@@ -237,7 +245,7 @@ To factory-reset all application state and immediately start a clean stack:
 kingo reset --yes
 ```
 
-This deletes databases, n8n workflows, Langflow state, and web-app settings, but retains downloaded images and the Kingo Kit installation. Files saved in `~/Kingokit` remain. Sample databases are not downloaded automatically after a reset; run `kingo samples` when they are needed.
+This deletes databases, n8n workflows, Langflow state, and web-app settings, but retains downloaded images and the Kingo Kit installation. Files saved in `~/Kingokit` remain. Sample databases are not loaded automatically after a reset; run `kingo import wwi` or `kingo import adventureworks` when they are needed.
 
 ## Uninstalling after the semester
 
@@ -253,14 +261,24 @@ For a managed or non-interactive machine, confirmation can be supplied explicitl
 kingo uninstall --yes
 ```
 
-Uninstall removes all Kingo Kit containers, images, volumes, its Docker network, generated credentials, the terminal command, and the installed application files. It always retains the student's work in `~/Kingokit`. It does **not** uninstall Docker Desktop, Docker Engine, or WSL. On Ubuntu, it also retains the separately installed Ollama host application.
+During repeated installation testing, retain downloaded and locally built Docker
+images while removing the containers, volumes, credentials, and installed files:
+
+```bash
+kingo uninstall --keep-images
+```
+
+The shorter `-keepimages` spelling is also accepted. Combine either form with
+`--yes` for an unattended uninstall.
+
+By default, uninstall removes all Kingo Kit containers, images, volumes, its Docker network, generated credentials, the terminal command, and the installed application files. With `--keep-images`, only the images are retained. It always retains the student's work in `~/Kingokit`. It does **not** uninstall Docker Desktop, Docker Engine, or WSL. On Ubuntu, it also retains the separately installed Ollama host application.
 
 ## Troubleshooting
 
 - `permission denied` for direct Docker commands: run `./kingo doctor` to distinguish account membership, session membership, daemon status, and socket permissions. `./kingo docker ps` works through Kingo's group-access fallback. If the account is listed in the Docker group but the current session is not, `newgrp docker` activates it in the current terminal. If the account was not added, run `sudo usermod -aG docker "$USER"` once and reboot Ubuntu.
 - A service is `unhealthy`: inspect its health-check history and recent logs with `./kingo health SERVICE`, for example `./kingo health metabase`.
 - A port is already in use: edit that service's host port in `~/.config/kingokit/.env`, then run `kingo up`.
-- Sample loading failed: verify internet access, then run `./kingo samples`. AdventureWorks and WWI are independently checkpointed.
+- Sample loading failed: verify internet access, then rerun `./kingo import wwi` or `./kingo import adventureworks`. AdventureWorks and WWI are independently checkpointed.
 - Low memory: stop unused apps with `./kingo app langflow down` and `./kingo app metabase down`, or give the VM more RAM.
 - Metabase was manually initialized with different credentials before provisioning completed: sign in and add PostgreSQL using the settings in `docs/connections.md`, or reset the stack on a disposable fresh install.
 

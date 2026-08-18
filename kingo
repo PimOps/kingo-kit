@@ -41,6 +41,26 @@ export KINGOKIT_SHARED_DIR="$shared_dir"
 
 compose=(docker compose --project-directory "$repo_dir" --env-file "$env_file")
 
+# A stray .env from a different Kingo Kit copy (e.g. a dev clone sitting next
+# to an installed copy) would otherwise silently report credentials that do
+# not match the containers actually running under the same project name.
+warn_if_env_mismatch() {
+  local running_password
+  running_password="$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' kingo-postgres 2>/dev/null | sed -n 's/^POSTGRES_PASSWORD=//p' || true)"
+  if [[ -n "$running_password" && -n "${POSTGRES_PASSWORD:-}" && "$running_password" != "$POSTGRES_PASSWORD" ]]; then
+    echo "Warning: $env_file does not match the running kingo-postgres container's credentials." >&2
+    echo "This copy of kingo is not the one managing the running containers (a different install or clone is). Values below may not apply to what is actually running; use that installation's 'kingo' command instead." >&2
+  fi
+}
+warn_if_env_mismatch
+
+# Skip file logging for quick, output-parsed lookups; log everything else so a
+# stuck or failed run (up, samples, uninstall, ...) can be diagnosed later.
+case "${1:-}" in
+  urls|credentials|mcp|-h|--help|help|"") ;;
+  *) init_kingo_logging kingo ;;
+esac
+
 usage() {
   cat <<'EOF'
 Usage: kingo COMMAND [arguments]
@@ -58,10 +78,11 @@ Commands:
   health SERVICE  Show container health details and recent service logs
   docker ARGS...  Run a Docker command with Kingo's group-access fallback
   app NAME ACTION Manage one app: up, down, restart, status, or logs
-  samples         Load/retry AdventureWorks and WideWorldImportersDW
+  import DATASET  Load one sample dataset: wwi or adventureworks
   psql            Open psql in the warehouse as the postgres administrator
   reset --yes     Factory-reset the apps and start a fresh stack
   uninstall       Remove Kingo Kit after confirmation (keeps ~/Kingokit)
+                  Add --keep-images (or -keepimages) to retain Docker images
 EOF
 }
 
@@ -86,6 +107,8 @@ ensure_container_names_available() {
 }
 
 reconcile_postgres() {
+  "${compose[@]}" exec -T postgres \
+    /docker-entrypoint-initdb.d/10-kingo-init.sh >/dev/null
   "${compose[@]}" exec -T postgres \
     psql --username postgres --dbname postgres --set ON_ERROR_STOP=1 \
     --file /docker-entrypoint-initdb.d/20-required-extensions.sql >/dev/null
@@ -252,25 +275,42 @@ Health: {{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}
 }
 
 start_stack() {
+  local web_services=(
+    jupyter jupyter-mcp langflow n8n metabase cloudbeaver qdrant
+  )
+
   ensure_container_names_available \
     kingo-postgres kingo-jupyter kingo-jupyter-mcp kingo-langflow kingo-n8n \
     kingo-metabase kingo-metabase-init kingo-cloudbeaver kingo-qdrant
   ensure_kingo_network
+
+  log "[1/2] Starting PostgreSQL..."
   "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
   reconcile_postgres
-  "${compose[@]}" up -d --build --wait --wait-timeout 180 jupyter
+
+  log "[2/2] Starting web applications..."
+  # Start the complete non-profile stack so one-shot helpers such as
+  # metabase-init still run, then wait only for the long-running applications.
   "${compose[@]}" up -d --build
+  "${compose[@]}" up -d --wait --wait-timeout 300 "${web_services[@]}"
+  log "All Kingo Kit applications are running."
 }
 
 confirm_uninstall() {
-  if [[ "${2:-}" == "--yes" ]]; then
+  local assume_yes="$1" keep_images="$2"
+  if [[ "$assume_yes" == true ]]; then
     return
   fi
   if [[ ! -t 0 ]]; then
     echo "Uninstall needs confirmation. Run: kingo uninstall --yes" >&2
     return 1
   fi
-  echo "This removes all Kingo Kit containers, images, volumes, network, credentials, and installed application files."
+  if [[ "$keep_images" == true ]]; then
+    echo "This removes all Kingo Kit containers, volumes, network, credentials, and installed application files."
+    echo "Downloaded and locally built Docker images will be retained for a faster reinstall."
+  else
+    echo "This removes all Kingo Kit containers, images, volumes, network, credentials, and installed application files."
+  fi
   echo "Student files in $shared_dir will be retained."
   echo "Docker Desktop/Docker Engine will NOT be uninstalled."
   printf "Type 'uninstall' to continue: "
@@ -326,11 +366,28 @@ remove_installed_files() {
 }
 
 uninstall_kingo() {
-  confirm_uninstall "$@" || return
+  local assume_yes=false keep_images=false arg
+  for arg in "${@:2}"; do
+    case "$arg" in
+      --yes) assume_yes=true ;;
+      --keep-images|-keepimages|--keepimages) keep_images=true ;;
+      *)
+        echo "Unknown uninstall option: $arg" >&2
+        echo "Usage: kingo uninstall [--keep-images] [--yes]" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  confirm_uninstall "$assume_yes" "$keep_images" || return
   validate_installation_target || return
   ensure_docker_access "$@"
 
-  if ! "${compose[@]}" --profile samples down --volumes --rmi all --remove-orphans; then
+  local down_args=(--profile samples down --volumes --remove-orphans)
+  if [[ "$keep_images" == false ]]; then
+    down_args+=(--rmi all)
+  fi
+  if ! "${compose[@]}" "${down_args[@]}"; then
     echo "Docker could not remove every Kingo Kit resource." >&2
     echo "The Kingo command and application files were retained so you can retry." >&2
     return 1
@@ -346,6 +403,9 @@ uninstall_kingo() {
   remove_installed_files
   echo
   echo "Kingo Kit's Docker stack and local credentials were removed."
+  if [[ "$keep_images" == true ]]; then
+    echo "Docker images were retained for a faster reinstall."
+  fi
   echo "Docker Desktop/Docker Engine was NOT uninstalled."
   echo "Student files were retained in: $shared_dir"
   if [[ "$network_retained" == true ]]; then
@@ -374,9 +434,9 @@ case "${1:-}" in
 JupyterLab:  http://${host_for_urls}:${JUPYTER_PORT:-8888}  (no login required)
 Jupyter MCP: http://${host_for_urls}:${JUPYTER_MCP_PORT:-4040}/mcp  (Bearer token required)
 Langflow:    http://${host_for_urls}:${LANGFLOW_PORT:-7860}
-n8n:         http://${host_for_urls}:${N8N_PORT:-5678}  (create your owner on first visit)
+n8n:         http://${host_for_urls}:${N8N_PORT:-5678}  (create an account on first visit)
 Metabase:    http://${host_for_urls}:${METABASE_PORT:-3000}  (${METABASE_ADMIN_EMAIL})
-CloudBeaver: http://${host_for_urls}:${CLOUDBEAVER_PORT:-8978}  (${CLOUDBEAVER_ADMIN_USER:-kingo})
+CloudBeaver: http://${host_for_urls}:${CLOUDBEAVER_PORT:-8978}  (${CLOUDBEAVER_ADMIN_USER:-kingouser})
 Qdrant UI:   http://${host_for_urls}:${QDRANT_HTTP_PORT:-6333}/dashboard
 PostgreSQL:  ${host_for_urls}:${POSTGRES_PORT:-5432} / warehouse
 EOF
@@ -386,11 +446,12 @@ EOF
 PostgreSQL database: warehouse
 PostgreSQL host from containers: kingo-postgres:5432
 PostgreSQL host from Ubuntu/host: ${host_for_urls}:${POSTGRES_PORT:-5432}
-Student read-only-ish login: student / ${STUDENT_DB_PASSWORD}
-Jupyter database login: jupyter / ${JUPYTER_DB_PASSWORD}
+Student database login: ${STUDENT_DB_USER:-kingouser} / ${STUDENT_DB_PASSWORD}
 Jupyter MCP bearer token: ${JUPYTER_MCP_TOKEN}
+Langflow fallback login: ${LANGFLOW_SUPERUSER:-kingouser} / ${LANGFLOW_SUPERUSER_PASSWORD}
+n8n web login: created by the user on first visit (no default account)
 Metabase web login: ${METABASE_ADMIN_EMAIL} / ${METABASE_ADMIN_PASSWORD}
-CloudBeaver web login: ${CLOUDBEAVER_ADMIN_USER:-kingo} / ${CLOUDBEAVER_ADMIN_PASSWORD}
+CloudBeaver web login: ${CLOUDBEAVER_ADMIN_USER:-kingouser} / ${CLOUDBEAVER_ADMIN_PASSWORD}
 EOF
     ;;
   mcp)
@@ -421,14 +482,29 @@ EOF
     docker "$@"
     ;;
   app) shift; run_app "$@" ;;
-  samples)
+  import)
+    dataset="${2:-}"
+    case "$dataset" in
+      wwi|adventureworks) ;;
+      *) echo "Usage: ./kingo import {wwi|adventureworks}" >&2; exit 2 ;;
+    esac
     ensure_docker_access "$@"
     ensure_kingo_network
+    log "Starting PostgreSQL..."
     "${compose[@]}" up -d --wait --wait-timeout 180 postgres
     reconcile_postgres
-    ensure_container_names_available kingo-adventureworks-source kingo-sample-loader
-    "${compose[@]}" --profile samples run --name kingo-sample-loader --rm --build sample-loader
-    "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
+    ensure_container_names_available kingo-sample-loader
+    if [[ "$dataset" == "adventureworks" ]]; then
+      ensure_container_names_available kingo-adventureworks-source
+      log "Starting the AdventureWorks source database..."
+      "${compose[@]}" --profile samples up -d --build --wait --wait-timeout 180 adventureworks-source
+    fi
+    log "Loading ${dataset}..."
+    "${compose[@]}" --profile samples run --name kingo-sample-loader --rm --build sample-loader "$dataset"
+    if [[ "$dataset" == "adventureworks" ]]; then
+      "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
+    fi
+    log "Import complete."
     ;;
   psql)
     ensure_docker_access "$@"

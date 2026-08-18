@@ -2,7 +2,10 @@
 set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-skip_samples=false
+# shellcheck source=lib/install-common.sh
+source "$repo_dir/scripts/lib/install-common.sh"
+init_kingo_logging bootstrap-ubuntu
+
 skip_ollama=false
 
 usage() {
@@ -12,7 +15,6 @@ Usage: ./scripts/bootstrap-ubuntu.sh [options]
 Install Docker Engine, Ollama, and the complete Kingo Kit classroom stack.
 
 Options:
-  --skip-samples  Start the apps without downloading the sample databases
   --skip-ollama   Do not install Ollama on the Ubuntu host
   -h, --help      Show this help
 EOF
@@ -20,7 +22,6 @@ EOF
 
 for arg in "$@"; do
   case "$arg" in
-    --skip-samples) skip_samples=true ;;
     --skip-ollama) skip_ollama=true ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage >&2; exit 2 ;;
@@ -46,13 +47,13 @@ if ! command -v sudo >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[1/6] Installing base packages..."
+log "[1/6] Installing base packages..."
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl git zstd
 
 
 if ! docker compose version >/dev/null 2>&1; then
-  echo "[2/6] Installing Docker Engine and the Compose plugin..."
+  log "[2/6] Installing Docker Engine and the Compose plugin..."
   sudo install -m 0755 -d /etc/apt/keyrings
   sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
   sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -69,7 +70,7 @@ if ! docker compose version >/dev/null 2>&1; then
   sudo apt-get update
   sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 else
-  echo "[2/6] Docker Compose is already available."
+  log "[2/6] Docker Compose is already available."
 fi
 
 # Docker may have been preinstalled while its systemd unit remained disabled.
@@ -89,9 +90,9 @@ echo "Confirmed $install_user is assigned to the docker group."
 
 if [[ "$skip_ollama" == false ]]; then
   if command -v ollama >/dev/null 2>&1; then
-    echo "[3/6] Ollama is already installed."
+    log "[3/6] Ollama is already installed."
   else
-    echo "[3/6] Installing Ollama on the Ubuntu host..."
+    log "[3/6] Installing Ollama on the Ubuntu host..."
     installer="$(mktemp)"
     trap 'rm -f "$installer"' EXIT
     curl -fsSL https://ollama.com/install.sh -o "$installer"
@@ -100,10 +101,10 @@ if [[ "$skip_ollama" == false ]]; then
     trap - EXIT
   fi
 else
-  echo "[3/6] Skipping Ollama."
+  log "[3/6] Skipping Ollama."
 fi
 
-echo "[4/6] Generating local credentials..."
+log "[4/6] Generating local credentials..."
 if [[ -f "$repo_dir/.kingokit-installed" ]]; then
   state_dir="${XDG_CONFIG_HOME:-$HOME/.config}/kingokit"
   mkdir -p "$state_dir"
@@ -115,12 +116,10 @@ else
 fi
 export KINGOKIT_ENV_FILE="$env_file"
 
-echo "[5/6] Configuring the Ubuntu wallpaper and Firefox homepage..."
+log "[5/6] Configuring the Ubuntu wallpaper and Firefox homepage..."
 "$repo_dir/scripts/configure-ubuntu-experience.sh"
 
 shared_dir="$HOME/Kingokit"
-# shellcheck source=lib/install-common.sh
-source "$repo_dir/scripts/lib/install-common.sh"
 create_shared_folder "$shared_dir"
 export KINGOKIT_SHARED_DIR="$shared_dir"
 
@@ -134,26 +133,24 @@ else
   compose=(sudo env "KINGOKIT_SHARED_DIR=$shared_dir" "KINGOKIT_ENV_FILE=$env_file" docker compose --project-directory "$repo_dir" --env-file "$env_file")
 fi
 
-echo "[6/6] Starting Kingo Kit..."
-echo "Created the shared student folder: $shared_dir"
+log "[6/6] Starting Kingo Kit..."
+log "Created the shared student folder: $shared_dir"
 if ! "${docker_command[@]}" network inspect kingo-kit >/dev/null 2>&1; then
   "${docker_command[@]}" network create kingo-kit >/dev/null
 fi
+log "  [1/2] Starting PostgreSQL..."
 "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
+"${compose[@]}" exec -T postgres \
+  /docker-entrypoint-initdb.d/10-kingo-init.sh >/dev/null
 "${compose[@]}" exec -T postgres \
   psql --username postgres --dbname postgres --set ON_ERROR_STOP=1 \
   --file /docker-entrypoint-initdb.d/20-required-extensions.sql >/dev/null
+
+log "  [2/2] Starting web applications..."
 "${compose[@]}" up -d --build
-sample_load_failed=false
-if [[ "$skip_samples" == false ]]; then
-  echo "Loading AdventureWorks and WideWorldImportersDW. This can take several minutes..."
-  if ! "${compose[@]}" --profile samples run --name kingo-sample-loader --rm --build sample-loader; then
-    sample_load_failed=true
-    echo "Sample loading did not finish, but the Kingo Kit apps are running." >&2
-    echo "Retry later with: $repo_dir/kingo samples" >&2
-  fi
-  "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
-fi
+web_services=(jupyter jupyter-mcp langflow n8n metabase cloudbeaver qdrant)
+"${compose[@]}" up -d --wait --wait-timeout 300 "${web_services[@]}"
+log "All Kingo Kit applications are running."
 
 echo
 echo "Kingo Kit is running."
@@ -163,6 +160,4 @@ if [[ "$skip_ollama" == false ]]; then
   echo "To configure and launch Claude Code with Ollama Cloud: ollama launch claude"
 fi
 echo "Log out and back in once before using docker directly without sudo."
-if [[ "$sample_load_failed" == true ]]; then
-  echo "The apps are ready; only the optional sample-data import remains incomplete."
-fi
+echo "Run 'kingo import wwi' or 'kingo import adventureworks' to load optional sample data."

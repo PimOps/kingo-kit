@@ -4,9 +4,9 @@ set -Eeuo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/install-common.sh
 source "$script_dir/lib/install-common.sh"
+init_kingo_logging install-macos
 
 start_stack=true
-load_samples=true
 usage() {
   cat <<'EOF'
 Usage: ./scripts/install-macos.sh [options]
@@ -16,7 +16,6 @@ be installed and running; Homebrew is not required.
 
 Options:
   --no-start      Install the command and files without starting containers
-  --skip-samples  Start the apps without loading the sample databases
   -h, --help      Show this help
 EOF
 }
@@ -24,7 +23,6 @@ EOF
 for arg in "$@"; do
   case "$arg" in
     --no-start) start_stack=false ;;
-    --skip-samples) load_samples=false ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage >&2; exit 2 ;;
   esac
@@ -41,21 +39,20 @@ shared_dir="${KINGOKIT_SHARED_DIR:-$HOME/Kingokit}"
 bin_dir="${KINGOKIT_BIN_DIR:-$HOME/.local/bin}"
 profile_file="${KINGOKIT_PROFILE_FILE:-$HOME/.zprofile}"
 
-echo "Installing Kingo Kit for macOS..."
+log "Installing Kingo Kit for macOS..."
 install_user_payload "$source_dir" "$install_dir"
 create_shared_folder "$shared_dir"
 create_macos_documents_link "$shared_dir"
 install_user_command "$install_dir" "$bin_dir" "$profile_file"
 
 if [[ "$start_stack" == true ]]; then
+  log "Checking Docker Desktop is running..."
   if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
     echo "Docker Desktop is not running. Start it, then run: kingo up" >&2
     exit 1
   fi
+  log "Running: kingo up"
   "$install_dir/kingo" up
-  if [[ "$load_samples" == true ]]; then
-    "$install_dir/kingo" samples
-  fi
 fi
 
 print_install_summary "$install_dir" "$shared_dir" "$bin_dir/kingo"
@@ -64,3 +61,4 @@ if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
 else
   echo "Run 'kingo urls' to see the application links."
 fi
+echo "Run 'kingo import wwi' or 'kingo import adventureworks' to load optional sample data."

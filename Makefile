@@ -1,4 +1,4 @@
-.PHONY: up down restart status logs urls credentials samples psql
+.PHONY: up down restart status logs urls credentials import psql
 
 up:
 	./kingo up
@@ -21,8 +21,9 @@ urls:
 credentials:
 	./kingo credentials
 
-samples:
-	./kingo samples
+# Example: make import DATASET=wwi
+import:
+	./kingo import $(or $(DATASET),wwi)
 
 psql:
 	./kingo psql
