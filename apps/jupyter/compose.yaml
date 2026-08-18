@@ -16,13 +16,14 @@ services:
       DATABASE_URL: postgresql+psycopg://jupyter:${JUPYTER_DB_PASSWORD}@kingo-postgres:5432/warehouse
       QDRANT_URL: http://kingo-qdrant:6333
     command:
-      - start-notebook.py
+      - start-kingo-jupyter
       - --IdentityProvider.token=
       - --ServerApp.password=
+      - --ServerApp.root_dir=/home/jovyan/work
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${JUPYTER_PORT:-8888}:8888"
     volumes:
-      - ../../notebooks:/home/jovyan/examples:ro
+      - ../../notebooks:/opt/kingo/examples:ro
       - ${KINGOKIT_SHARED_DIR:?Set KINGOKIT_SHARED_DIR}:/home/jovyan/work
       - jupyter-home:/home/jovyan/.jupyter
     networks:

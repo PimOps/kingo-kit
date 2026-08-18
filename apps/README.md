@@ -7,6 +7,7 @@ The launcher also exports `KINGOKIT_SHARED_DIR` for the bind mounts used by Jupy
 ```bash
 ./kingo app postgres up
 ./kingo app jupyter up
+./kingo app jupyter-mcp up
 ./kingo app jupyter status
 ./kingo app jupyter logs
 ./kingo app jupyter down

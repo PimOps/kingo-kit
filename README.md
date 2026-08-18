@@ -7,6 +7,7 @@ The stack includes:
 - PostgreSQL 17 with pgvector, configured as a learning/data-warehouse server
 - Qdrant 1.19.0 for dedicated vector search and retrieval exercises
 - JupyterLab with pandas, Polars, SQLAlchemy, psycopg, pgvector, DuckDB, and common data-science libraries
+- Jupyter MCP Server for connecting local AI assistants to notebooks and kernels
 - Langflow for visual AI workflows
 - n8n for workflow automation
 - Metabase for business intelligence (pre-connected to the warehouse)
@@ -91,6 +92,7 @@ kingo status             # container status and health
 kingo health metabase    # health-check details and recent logs
 kingo urls               # URLs and usernames
 kingo credentials        # local classroom credentials
+kingo mcp                # MCP endpoint, bearer token, and client example
 kingo logs n8n           # follow one service's logs
 kingo app jupyter up     # manage only one application
 kingo app qdrant up      # start only Qdrant
@@ -110,6 +112,7 @@ Every application has its own folder and standalone Compose file:
 |---|---|
 | `apps/postgres/` | PostgreSQL, pgvector, PostGIS, schemas, and application users |
 | `apps/jupyter/` | JupyterLab and its persistent home volume |
+| `apps/jupyter-mcp/` | Authenticated Streamable HTTP bridge for local AI assistants |
 | `apps/langflow/` | Langflow |
 | `apps/n8n/` | n8n |
 | `apps/metabase/` | Metabase and its automatic warehouse setup helper |
@@ -133,6 +136,7 @@ See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intend
 | Service | Default URL/port | First login |
 |---|---:|---|
 | JupyterLab | <http://localhost:8888> | No login required |
+| Jupyter MCP | <http://localhost:4040/mcp> | Bearer token from `kingo mcp` |
 | Langflow | <http://localhost:7860> | Auto-login classroom instance |
 | n8n | <http://localhost:5678> | Create the local owner on first visit |
 | Metabase | <http://localhost:3000> | From `./kingo credentials` |
@@ -140,7 +144,18 @@ See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intend
 | Qdrant dashboard | <http://localhost:6333/dashboard> | Local classroom instance; no login |
 | PostgreSQL | `localhost:5432` | From `./kingo credentials` |
 
-Start with `/home/jovyan/examples/00_kingo_kit_welcome.ipynb` in JupyterLab, then save an editable copy under `/home/jovyan/work`.
+Start with `jupyter_examples/00_kingo_kit_welcome.ipynb` in JupyterLab. It is a writable copy stored in `~/Kingokit/jupyter_examples` on the host.
+
+Notebook shell commands run from the directory containing the open notebook. For a separate `uv` project, create and enter a folder under the writable workspace first:
+
+```python
+from pathlib import Path
+Path("/home/jovyan/work/my-project").mkdir(exist_ok=True)
+%cd /home/jovyan/work/my-project
+!uv init
+```
+
+Local AI assistants that support MCP can control Jupyter notebooks and kernels through the authenticated Streamable HTTP endpoint. Run `kingo mcp` for the endpoint and bearer token, and see [docs/jupyter-mcp.md](docs/jupyter-mcp.md) for client examples and security guidance.
 
 ## Shared student files
 
@@ -152,7 +167,7 @@ The installer and launcher create `~/Kingokit`. Files placed there remain ordina
 | Langflow | `/app/kingokit` |
 | n8n | `/home/node/kingokit` |
 
-The shared folder survives `kingo down`, `kingo reset --yes`, and application upgrades because it is not a Docker volume or part of the installed application directory. Example notebooks are available read-only at `/home/jovyan/examples`; students can copy one into `/home/jovyan/work` before editing it.
+The shared folder survives `kingo down`, `kingo reset --yes`, and application upgrades because it is not a Docker volume or part of the installed application directory. At startup, missing example notebooks are copied into `~/Kingokit/jupyter_examples`. Existing copies are never overwritten, so student edits are retained. An existing `~/Kingokit/examples` folder is renamed automatically when the new name is not already present.
 
 ## Database design
 
@@ -178,6 +193,7 @@ ssh -L 8888:localhost:8888 \
     -L 8978:localhost:8978 \
     -L 6333:localhost:6333 \
     -L 6334:localhost:6334 \
+    -L 4040:localhost:4040 \
     -L 5432:localhost:5432 student@UBUNTU_IP
 ```
 

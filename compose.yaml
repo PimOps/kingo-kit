@@ -8,6 +8,8 @@ include:
     env_file: ${KINGOKIT_ENV_FILE:-.env}
   - path: apps/jupyter/compose.yaml
     env_file: ${KINGOKIT_ENV_FILE:-.env}
+  - path: apps/jupyter-mcp/compose.yaml
+    env_file: ${KINGOKIT_ENV_FILE:-.env}
   - path: apps/langflow/compose.yaml
     env_file: ${KINGOKIT_ENV_FILE:-.env}
   - path: apps/n8n/compose.yaml

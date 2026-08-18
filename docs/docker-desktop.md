@@ -16,6 +16,7 @@ The macOS and Windows/WSL Kingo Kit installers intentionally install no addition
 | Named persistent volumes | Supported | Supported |
 | AdventureWorks and WWI import | Supported | Supported |
 | Browser access through `localhost` | Supported | Supported |
+| Jupyter MCP for local AI assistants | Supported | Supported |
 | `./kingo` Bash launcher | Supported | Supported through WSL 2 or Git Bash |
 | Native PowerShell launcher | Not applicable | Not implemented yet |
 | Ubuntu wallpaper and Firefox policy | Not applicable | Not applicable |

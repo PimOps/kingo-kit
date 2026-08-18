@@ -20,7 +20,11 @@ fi
 mkdir -p "$state_dir"
 env_file="$state_dir/.env"
 
-if [[ ! -f "$env_file" ]]; then
+# This is also an idempotent migration step for credentials introduced by a
+# newer Kingo Kit version; existing values are never rotated.
+if [[ -f "$env_file" ]]; then
+  KINGOKIT_ENV_FILE="$env_file" "$repo_dir/scripts/generate-env.sh" >/dev/null
+else
   KINGOKIT_ENV_FILE="$env_file" "$repo_dir/scripts/generate-env.sh"
 fi
 export KINGOKIT_ENV_FILE="$env_file"
@@ -49,6 +53,7 @@ Commands:
   logs [service]  Follow logs for all services or one service
   urls            Show browser URLs and local login information
   credentials     Show database and application credentials from .env
+  mcp             Show Jupyter MCP connection settings
   doctor          Diagnose Docker access and installation status
   health SERVICE  Show container health details and recent service logs
   docker ARGS...  Run a Docker command with Kingo's group-access fallback
@@ -89,10 +94,10 @@ reconcile_postgres() {
 run_app() {
   local app_name="${1:-}" action="${2:-status}"
   case "$app_name" in
-    postgres|jupyter|langflow|n8n|metabase|cloudbeaver|qdrant) ;;
+    postgres|jupyter|jupyter-mcp|langflow|n8n|metabase|cloudbeaver|qdrant) ;;
     *)
       echo "Unknown app: ${app_name:-<missing>}" >&2
-      echo "Available apps: postgres, jupyter, langflow, n8n, metabase, cloudbeaver, qdrant" >&2
+      echo "Available apps: postgres, jupyter, jupyter-mcp, langflow, n8n, metabase, cloudbeaver, qdrant" >&2
       exit 2
       ;;
   esac
@@ -108,6 +113,9 @@ run_app() {
   case "$action" in
     up)
       ensure_container_names_available "kingo-$app_name"
+      if [[ "$app_name" == "jupyter-mcp" ]]; then
+        "${compose[@]}" up -d --build --wait --wait-timeout 180 jupyter
+      fi
       if [[ "$app_name" == "metabase" ]]; then
         ensure_container_names_available kingo-metabase-init
         "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
@@ -245,11 +253,12 @@ Health: {{if .State.Health}}{{.State.Health.Status}}{{else}}not configured{{end}
 
 start_stack() {
   ensure_container_names_available \
-    kingo-postgres kingo-jupyter kingo-langflow kingo-n8n \
+    kingo-postgres kingo-jupyter kingo-jupyter-mcp kingo-langflow kingo-n8n \
     kingo-metabase kingo-metabase-init kingo-cloudbeaver kingo-qdrant
   ensure_kingo_network
   "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
   reconcile_postgres
+  "${compose[@]}" up -d --build --wait --wait-timeout 180 jupyter
   "${compose[@]}" up -d --build
 }
 
@@ -363,6 +372,7 @@ case "${1:-}" in
   urls)
     cat <<EOF
 JupyterLab:  http://${host_for_urls}:${JUPYTER_PORT:-8888}  (no login required)
+Jupyter MCP: http://${host_for_urls}:${JUPYTER_MCP_PORT:-4040}/mcp  (Bearer token required)
 Langflow:    http://${host_for_urls}:${LANGFLOW_PORT:-7860}
 n8n:         http://${host_for_urls}:${N8N_PORT:-5678}  (create your owner on first visit)
 Metabase:    http://${host_for_urls}:${METABASE_PORT:-3000}  (${METABASE_ADMIN_EMAIL})
@@ -378,8 +388,18 @@ PostgreSQL host from containers: kingo-postgres:5432
 PostgreSQL host from Ubuntu/host: ${host_for_urls}:${POSTGRES_PORT:-5432}
 Student read-only-ish login: student / ${STUDENT_DB_PASSWORD}
 Jupyter database login: jupyter / ${JUPYTER_DB_PASSWORD}
+Jupyter MCP bearer token: ${JUPYTER_MCP_TOKEN}
 Metabase web login: ${METABASE_ADMIN_EMAIL} / ${METABASE_ADMIN_PASSWORD}
 CloudBeaver web login: ${CLOUDBEAVER_ADMIN_USER:-kingo} / ${CLOUDBEAVER_ADMIN_PASSWORD}
+EOF
+    ;;
+  mcp)
+    cat <<EOF
+Jupyter MCP endpoint: http://${host_for_urls}:${JUPYTER_MCP_PORT:-4040}/mcp
+Authorization header: Bearer ${JUPYTER_MCP_TOKEN}
+
+Claude Code example:
+claude mcp add kingo-jupyter --transport http http://${host_for_urls}:${JUPYTER_MCP_PORT:-4040}/mcp --header "Authorization: Bearer ${JUPYTER_MCP_TOKEN}"
 EOF
     ;;
   doctor) doctor ;;

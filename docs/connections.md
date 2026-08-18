@@ -8,6 +8,7 @@ Docker Desktop may otherwise display Compose containers with a numeric replica s
 |---|---|
 | PostgreSQL | `kingo-postgres` |
 | JupyterLab | `kingo-jupyter` |
+| Jupyter MCP Server | `kingo-jupyter-mcp` |
 | Langflow | `kingo-langflow` |
 | n8n | `kingo-n8n` |
 | Metabase | `kingo-metabase` |
