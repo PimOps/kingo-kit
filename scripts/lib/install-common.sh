@@ -3,6 +3,28 @@
 # Shared helpers for the host-specific installers. The calling script enables
 # strict mode and supplies the destination paths.
 
+kingo_log_file=""
+
+# Mirrors all stdout/stderr to a persistent, timestamped log file so a stuck
+# or failed run can be diagnosed after the fact. Set KINGO_DEBUG=1 to also
+# trace every command (with a timestamp per line) into the same log.
+init_kingo_logging() {
+  local log_name="$1"
+  local log_dir="${KINGOKIT_LOG_DIR:-$HOME/.kingokit/logs}"
+  mkdir -p "$log_dir" 2>/dev/null || log_dir="${TMPDIR:-/tmp}"
+  kingo_log_file="$log_dir/${log_name}.log"
+  exec > >(tee -a "$kingo_log_file") 2>&1
+  log "Starting $log_name (log: $kingo_log_file)"
+  if [[ "${KINGO_DEBUG:-0}" == "1" ]]; then
+    PS4='+ [$(date "+%H:%M:%S")] '
+    set -x
+  fi
+}
+
+log() {
+  printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
+}
+
 kingo_source_dir() {
   cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd
 }

@@ -41,6 +41,13 @@ export KINGOKIT_SHARED_DIR="$shared_dir"
 
 compose=(docker compose --project-directory "$repo_dir" --env-file "$env_file")
 
+# Skip file logging for quick, output-parsed lookups; log everything else so a
+# stuck or failed run (up, samples, uninstall, ...) can be diagnosed later.
+case "${1:-}" in
+  urls|credentials|mcp|-h|--help|help|"") ;;
+  *) init_kingo_logging kingo ;;
+esac
+
 usage() {
   cat <<'EOF'
 Usage: kingo COMMAND [arguments]
@@ -123,9 +130,6 @@ run_app() {
         ensure_container_names_available kingo-metabase-init
         "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
         reconcile_postgres
-      fi
-      if [[ "$app_name" == "n8n" ]]; then
-        ensure_container_names_available kingo-n8n-init
       fi
       "${app_compose[@]}" up -d --build
       ;;
@@ -263,20 +267,20 @@ start_stack() {
   )
 
   ensure_container_names_available \
-    kingo-postgres kingo-jupyter kingo-jupyter-mcp kingo-langflow kingo-n8n kingo-n8n-init \
+    kingo-postgres kingo-jupyter kingo-jupyter-mcp kingo-langflow kingo-n8n \
     kingo-metabase kingo-metabase-init kingo-cloudbeaver kingo-qdrant
   ensure_kingo_network
 
-  echo "[1/2] Starting PostgreSQL..."
+  log "[1/2] Starting PostgreSQL..."
   "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
   reconcile_postgres
 
-  echo "[2/2] Starting web applications..."
+  log "[2/2] Starting web applications..."
   # Start the complete non-profile stack so one-shot helpers such as
   # metabase-init still run, then wait only for the long-running applications.
   "${compose[@]}" up -d --build
   "${compose[@]}" up -d --wait --wait-timeout 300 "${web_services[@]}"
-  echo "All Kingo Kit applications are running."
+  log "All Kingo Kit applications are running."
 }
 
 confirm_uninstall() {
@@ -417,7 +421,7 @@ case "${1:-}" in
 JupyterLab:  http://${host_for_urls}:${JUPYTER_PORT:-8888}  (no login required)
 Jupyter MCP: http://${host_for_urls}:${JUPYTER_MCP_PORT:-4040}/mcp  (Bearer token required)
 Langflow:    http://${host_for_urls}:${LANGFLOW_PORT:-7860}
-n8n:         http://${host_for_urls}:${N8N_PORT:-5678}  (${N8N_OWNER_EMAIL})
+n8n:         http://${host_for_urls}:${N8N_PORT:-5678}  (create an account on first visit)
 Metabase:    http://${host_for_urls}:${METABASE_PORT:-3000}  (${METABASE_ADMIN_EMAIL})
 CloudBeaver: http://${host_for_urls}:${CLOUDBEAVER_PORT:-8978}  (${CLOUDBEAVER_ADMIN_USER:-kingouser})
 Qdrant UI:   http://${host_for_urls}:${QDRANT_HTTP_PORT:-6333}/dashboard
@@ -432,7 +436,7 @@ PostgreSQL host from Ubuntu/host: ${host_for_urls}:${POSTGRES_PORT:-5432}
 Student database login: ${STUDENT_DB_USER:-kingouser} / ${STUDENT_DB_PASSWORD}
 Jupyter MCP bearer token: ${JUPYTER_MCP_TOKEN}
 Langflow fallback login: ${LANGFLOW_SUPERUSER:-kingouser} / ${LANGFLOW_SUPERUSER_PASSWORD}
-n8n web login: ${N8N_OWNER_EMAIL} / ${N8N_OWNER_PASSWORD}
+n8n web login: created by the user on first visit (no default account)
 Metabase web login: ${METABASE_ADMIN_EMAIL} / ${METABASE_ADMIN_PASSWORD}
 CloudBeaver web login: ${CLOUDBEAVER_ADMIN_USER:-kingouser} / ${CLOUDBEAVER_ADMIN_PASSWORD}
 EOF
@@ -468,11 +472,14 @@ EOF
   samples)
     ensure_docker_access "$@"
     ensure_kingo_network
+    log "Starting PostgreSQL..."
     "${compose[@]}" up -d --wait --wait-timeout 180 postgres
     reconcile_postgres
     ensure_container_names_available kingo-adventureworks-source kingo-sample-loader
+    log "Loading AdventureWorks and WideWorldImportersDW..."
     "${compose[@]}" --profile samples run --name kingo-sample-loader --rm --build sample-loader
     "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
+    log "Sample loading complete."
     ;;
   psql)
     ensure_docker_access "$@"

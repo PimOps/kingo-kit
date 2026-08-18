@@ -4,6 +4,7 @@ set -Eeuo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/install-common.sh
 source "$script_dir/lib/install-common.sh"
+init_kingo_logging install-wsl
 
 start_stack=true
 load_samples=true
@@ -41,21 +42,23 @@ shared_dir="${KINGOKIT_SHARED_DIR:-$HOME/Kingokit}"
 bin_dir="${KINGOKIT_BIN_DIR:-$HOME/.local/bin}"
 profile_file="${KINGOKIT_PROFILE_FILE:-$HOME/.profile}"
 
-echo "Installing Kingo Kit for Windows WSL..."
+log "Installing Kingo Kit for Windows WSL..."
 install_user_payload "$source_dir" "$install_dir"
 create_shared_folder "$shared_dir"
 create_windows_documents_shortcut "$shared_dir"
 install_user_command "$install_dir" "$bin_dir" "$profile_file"
 
 if [[ "$start_stack" == true ]]; then
+  log "Checking Docker Desktop's WSL integration..."
   if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
     echo "Docker Desktop's WSL integration is unavailable." >&2
     echo "Enable this distribution under Docker Desktop > Settings > Resources > WSL Integration, then run: kingo up" >&2
     exit 1
   fi
+  log "Running: kingo up"
   "$install_dir/kingo" up
   if [[ "$load_samples" == true ]]; then
-    echo "Final step: loading the example databases. The applications are already running."
+    log "Final step: loading the example databases. The applications are already running."
     "$install_dir/kingo" samples
   fi
 fi

@@ -52,6 +52,11 @@ CREATE SCHEMA IF NOT EXISTS cloudbeaver AUTHORIZATION cloudbeaver;
 CREATE SCHEMA IF NOT EXISTS jupyter AUTHORIZATION jupyter;
 CREATE SCHEMA IF NOT EXISTS shared AUTHORIZATION postgres;
 
+-- These apps re-run their own "CREATE SCHEMA IF NOT EXISTS" at every startup.
+-- Postgres checks database-level CREATE privilege before the IF NOT EXISTS
+-- check, so without it the app hangs silently instead of failing loudly.
+GRANT CREATE ON DATABASE kingo TO n8n, langflow, langgraph, cloudbeaver, jupyter;
+
 ALTER ROLE n8n IN DATABASE kingo SET search_path = n8n;
 ALTER ROLE langflow IN DATABASE kingo SET search_path = langflow;
 ALTER ROLE langgraph IN DATABASE kingo SET search_path = langgraph, shared, public;

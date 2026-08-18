@@ -7,6 +7,10 @@ services:
       dockerfile: docker/postgres/Dockerfile
       args:
         POSTGRES_BASE_IMAGE: ${POSTGRES_BASE_IMAGE:-pgvector/pgvector:pg17}
+      # Attestations embed a build timestamp, so a fully cached rebuild still
+      # changes the image digest and forces an unnecessary container recreate.
+      provenance: false
+      sbom: false
     restart: unless-stopped
     environment:
       POSTGRES_DB: kingo

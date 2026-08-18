@@ -19,6 +19,10 @@ services:
     build:
       context: ../..
       dockerfile: docker/sample-loader/Dockerfile
+      # Attestations embed a build timestamp, so a fully cached rebuild still
+      # changes the image digest and forces an unnecessary container recreate.
+      provenance: false
+      sbom: false
     profiles: [samples]
     environment:
       TARGET_DSN: postgresql://postgres:${POSTGRES_PASSWORD}@kingo-postgres:5432/warehouse

@@ -59,8 +59,6 @@ ensure_default STUDENT_DB_PASSWORD change_me_later
 ensure_default LANGFLOW_AUTO_LOGIN true
 ensure_default LANGFLOW_SUPERUSER kingouser
 ensure_default LANGFLOW_SUPERUSER_PASSWORD change_me_later
-ensure_default N8N_OWNER_EMAIL user@kingo.local
-ensure_default N8N_OWNER_PASSWORD change_me_later
 ensure_default METABASE_ADMIN_EMAIL user@kingo.local
 ensure_default METABASE_ADMIN_PASSWORD change_me_later
 ensure_default CLOUDBEAVER_ADMIN_USER kingouser

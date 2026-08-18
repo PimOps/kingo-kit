@@ -2,6 +2,10 @@
 set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/install-common.sh
+source "$repo_dir/scripts/lib/install-common.sh"
+init_kingo_logging bootstrap-ubuntu
+
 skip_samples=false
 skip_ollama=false
 
@@ -46,13 +50,13 @@ if ! command -v sudo >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[1/6] Installing base packages..."
+log "[1/6] Installing base packages..."
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl git zstd
 
 
 if ! docker compose version >/dev/null 2>&1; then
-  echo "[2/6] Installing Docker Engine and the Compose plugin..."
+  log "[2/6] Installing Docker Engine and the Compose plugin..."
   sudo install -m 0755 -d /etc/apt/keyrings
   sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
   sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -69,7 +73,7 @@ if ! docker compose version >/dev/null 2>&1; then
   sudo apt-get update
   sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 else
-  echo "[2/6] Docker Compose is already available."
+  log "[2/6] Docker Compose is already available."
 fi
 
 # Docker may have been preinstalled while its systemd unit remained disabled.
@@ -89,9 +93,9 @@ echo "Confirmed $install_user is assigned to the docker group."
 
 if [[ "$skip_ollama" == false ]]; then
   if command -v ollama >/dev/null 2>&1; then
-    echo "[3/6] Ollama is already installed."
+    log "[3/6] Ollama is already installed."
   else
-    echo "[3/6] Installing Ollama on the Ubuntu host..."
+    log "[3/6] Installing Ollama on the Ubuntu host..."
     installer="$(mktemp)"
     trap 'rm -f "$installer"' EXIT
     curl -fsSL https://ollama.com/install.sh -o "$installer"
@@ -100,10 +104,10 @@ if [[ "$skip_ollama" == false ]]; then
     trap - EXIT
   fi
 else
-  echo "[3/6] Skipping Ollama."
+  log "[3/6] Skipping Ollama."
 fi
 
-echo "[4/6] Generating local credentials..."
+log "[4/6] Generating local credentials..."
 if [[ -f "$repo_dir/.kingokit-installed" ]]; then
   state_dir="${XDG_CONFIG_HOME:-$HOME/.config}/kingokit"
   mkdir -p "$state_dir"
@@ -115,12 +119,10 @@ else
 fi
 export KINGOKIT_ENV_FILE="$env_file"
 
-echo "[5/6] Configuring the Ubuntu wallpaper and Firefox homepage..."
+log "[5/6] Configuring the Ubuntu wallpaper and Firefox homepage..."
 "$repo_dir/scripts/configure-ubuntu-experience.sh"
 
 shared_dir="$HOME/Kingokit"
-# shellcheck source=lib/install-common.sh
-source "$repo_dir/scripts/lib/install-common.sh"
 create_shared_folder "$shared_dir"
 export KINGOKIT_SHARED_DIR="$shared_dir"
 
@@ -134,12 +136,12 @@ else
   compose=(sudo env "KINGOKIT_SHARED_DIR=$shared_dir" "KINGOKIT_ENV_FILE=$env_file" docker compose --project-directory "$repo_dir" --env-file "$env_file")
 fi
 
-echo "[6/6] Starting Kingo Kit..."
-echo "Created the shared student folder: $shared_dir"
+log "[6/6] Starting Kingo Kit..."
+log "Created the shared student folder: $shared_dir"
 if ! "${docker_command[@]}" network inspect kingo-kit >/dev/null 2>&1; then
   "${docker_command[@]}" network create kingo-kit >/dev/null
 fi
-echo "  [1/3] Starting PostgreSQL..."
+log "  [1/3] Starting PostgreSQL..."
 "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
 "${compose[@]}" exec -T postgres \
   /docker-entrypoint-initdb.d/10-kingo-init.sh >/dev/null
@@ -147,16 +149,16 @@ echo "  [1/3] Starting PostgreSQL..."
   psql --username postgres --dbname postgres --set ON_ERROR_STOP=1 \
   --file /docker-entrypoint-initdb.d/20-required-extensions.sql >/dev/null
 
-echo "  [2/3] Starting web applications..."
+log "  [2/3] Starting web applications..."
 "${compose[@]}" up -d --build
 web_services=(jupyter jupyter-mcp langflow n8n metabase cloudbeaver qdrant)
 "${compose[@]}" up -d --wait --wait-timeout 300 "${web_services[@]}"
-echo "All Kingo Kit applications are running."
+log "All Kingo Kit applications are running."
 
 sample_load_failed=false
 if [[ "$skip_samples" == false ]]; then
-  echo "  [3/3] Loading AdventureWorks and WideWorldImportersDW as the final step."
-  echo "The applications are already available; the example import can take several minutes."
+  log "  [3/3] Loading AdventureWorks and WideWorldImportersDW as the final step."
+  log "The applications are already available; the example import can take several minutes."
   if ! "${compose[@]}" --profile samples run --name kingo-sample-loader --rm --build sample-loader; then
     sample_load_failed=true
     echo "Sample loading did not finish, but the Kingo Kit apps are running." >&2
