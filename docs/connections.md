@@ -1,6 +1,23 @@
 # Connecting the Kingo Kit tools
 
-Docker services reach PostgreSQL at `postgres:5432`. Programs running directly on Ubuntu (or through forwarded host ports) use `localhost` and the `POSTGRES_PORT` value from `.env`, which defaults to `5432`.
+Docker services reach PostgreSQL at `kingo-postgres:5432`. Programs running directly on Ubuntu (or through forwarded host ports) use `localhost` and the `POSTGRES_PORT` value from `.env`, which defaults to `5432`.
+
+Docker Desktop may otherwise display Compose containers with a numeric replica suffix such as `postgres-1`. Kingo Kit assigns explicit container names and matching network hostnames instead:
+
+| Application | Container/network hostname |
+|---|---|
+| PostgreSQL | `kingo-postgres` |
+| JupyterLab | `kingo-jupyter` |
+| Jupyter MCP Server | `kingo-jupyter-mcp` |
+| Langflow | `kingo-langflow` |
+| n8n | `kingo-n8n` |
+| Metabase | `kingo-metabase` |
+| CloudBeaver | `kingo-cloudbeaver` |
+| Qdrant | `kingo-qdrant` |
+| AdventureWorks import source | `kingo-adventureworks-source` (temporary) |
+| Sample loader | `kingo-sample-loader` (temporary) |
+
+The names are Kingo-specific, so an unrelated container named `postgres`, `jupyter`, or `n8n` does not conflict. The old `postgres` and `qdrant` network aliases remain temporarily available for saved connections, but new configurations should use the `kingo-` names.
 
 Use the `warehouse` database for analysis. Most application state belongs in the `kingo` database and the application's named schema. Metabase uses a dedicated `metabase` application database because its migrations require control of the `public` schema.
 
@@ -10,7 +27,7 @@ Sign in with the web credentials shown by `./kingo credentials`, select **New co
 
 | Field | Value |
 |---|---|
-| Host | `postgres` |
+| Host | `kingo-postgres` |
 | Port | `5432` |
 | Database | `warehouse` |
 | User | `student` |
@@ -24,7 +41,7 @@ Kingo Kit completes Metabase's first-run setup and adds **Kingo Warehouse** auto
 
 Metabase stores its own users, settings, questions, and dashboards in the dedicated `metabase` database. This is separate from its automatically configured `warehouse` analytics connection.
 
-If the automatic step was interrupted, add a PostgreSQL database with host `postgres`, port `5432`, database `warehouse`, user `metabase`, and `METABASE_DB_PASSWORD` from `.env`.
+If the automatic step was interrupted, add a PostgreSQL database with host `kingo-postgres`, port `5432`, database `warehouse`, user `metabase`, and `METABASE_DB_PASSWORD` from `.env`.
 
 ## n8n
 
@@ -32,7 +49,7 @@ n8n stores its own state in `kingo.n8n`. To create a separate PostgreSQL credent
 
 | Field | Value |
 |---|---|
-| Host | `postgres` |
+| Host | `kingo-postgres` |
 | Database | `warehouse` |
 | User | `n8n` |
 | Password | `N8N_DB_PASSWORD` from `.env` |
@@ -46,7 +63,7 @@ The role can read the sample warehouse. For exercises that write results, use th
 Langflow's internal database is already configured in `kingo.langflow`. Components that query the warehouse can use:
 
 ```text
-postgresql://langflow:PASSWORD@postgres:5432/warehouse
+postgresql://langflow:PASSWORD@kingo-postgres:5432/warehouse
 ```
 
 Replace `PASSWORD` with `LANGFLOW_DB_PASSWORD` from `.env`.
@@ -54,7 +71,7 @@ Replace `PASSWORD` with `LANGFLOW_DB_PASSWORD` from `.env`.
 The prepared LangGraph login uses `kingo.langgraph` for checkpoints/application tables:
 
 ```text
-postgresql://langgraph:PASSWORD@postgres:5432/kingo?options=-csearch_path%3Dlanggraph
+postgresql://langgraph:PASSWORD@kingo-postgres:5432/kingo?options=-csearch_path%3Dlanggraph
 ```
 
 LangGraph is a Python library rather than a separate web application in this stack. Install it in a course project or notebook as required by the lesson; the database role and schema are already ready.
@@ -75,7 +92,7 @@ df
 
 ## Qdrant
 
-Containers reach Qdrant's REST API at `http://qdrant:6333` and its gRPC API at `qdrant:6334`. Programs running on Ubuntu or through the SSH tunnels use `http://localhost:6333`. The web dashboard is available at <http://localhost:6333/dashboard>.
+Containers reach Qdrant's REST API at `http://kingo-qdrant:6333` and its gRPC API at `kingo-qdrant:6334`. Programs running on Ubuntu or through the SSH tunnels use `http://localhost:6333`. The web dashboard is available at <http://localhost:6333/dashboard>.
 
 JupyterLab includes the official Python client and receives `QDRANT_URL` automatically:
 
@@ -87,7 +104,7 @@ qdrant = QdrantClient(url=os.environ["QDRANT_URL"])
 qdrant.get_collections()
 ```
 
-Langflow and n8n also receive `QDRANT_URL=http://qdrant:6333`. Use that value when configuring their Qdrant components or credentials. The local classroom instance has no API key and remains bound to `127.0.0.1` unless an instructor explicitly changes `BIND_ADDRESS`.
+Langflow and n8n also receive `QDRANT_URL=http://kingo-qdrant:6333`. Use that value when configuring their Qdrant components or credentials. The local classroom instance has no API key and remains bound to `127.0.0.1` unless an instructor explicitly changes `BIND_ADDRESS`.
 
 Qdrant stores vectors supplied by a client. It does not create embeddings itself, download an embedding model, or run a local LLM.
 

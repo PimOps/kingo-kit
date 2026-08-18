@@ -7,14 +7,42 @@ The stack includes:
 - PostgreSQL 17 with pgvector, configured as a learning/data-warehouse server
 - Qdrant 1.19.0 for dedicated vector search and retrieval exercises
 - JupyterLab with pandas, Polars, SQLAlchemy, psycopg, pgvector, DuckDB, and common data-science libraries
+- Jupyter MCP Server for connecting local AI assistants to notebooks and kernels
 - Langflow for visual AI workflows
 - n8n for workflow automation
 - Metabase for business intelligence (pre-connected to the warehouse)
 - CloudBeaver for browser-based SQL and database exploration
 - AdventureWorks and WideWorldImportersDW sample data in PostgreSQL
-- Host-native Ollama, ready to configure Claude Code with `ollama launch claude`
+- On Ubuntu only: host-native Ollama, ready to configure Claude Code with `ollama launch claude`
 - Kingo Kit's SKKU-green hanok wallpaper on Ubuntu Desktop
 - Firefox homepage configured as <https://www.askkingo.ai>
+
+## Host installers
+
+Clone the repository, then run the installer for the student's host:
+
+```bash
+# Ubuntu Server or Desktop
+./scripts/install-ubuntu.sh
+
+# macOS with Docker Desktop already installed
+./scripts/install-macos.sh
+
+# Windows, from WSL 2 with Docker Desktop integration enabled
+./scripts/install-wsl.sh
+```
+
+All three installers provide the same separation between the application and student work:
+
+| Purpose | Ubuntu | macOS | Windows WSL |
+|---|---|---|---|
+| Student files | `~/Kingokit` | `~/Kingokit` | `~/Kingokit` |
+| Easy-to-find access | Home folder | `Documents/Kingokit` Finder link | `Kingokit` shortcut in Windows Documents |
+| Application files | `/opt/kingokit` | `~/Library/Application Support/Kingo Kit` | `~/.local/share/kingokit` |
+| Private configuration | `~/.config/kingokit` | `~/.config/kingokit` | `~/.config/kingokit` |
+| Terminal command | `/usr/local/bin/kingo` | `~/.local/bin/kingo` | `~/.local/bin/kingo` |
+
+The macOS and WSL installers do not install Docker Desktop themselves. They verify that it is running and explain what is missing. They do not install or configure host-native applications; Ollama integration is available only through the Ubuntu installer. Homebrew is not required. Use `--no-start` to install without starting containers or `--skip-samples` to postpone the sample database download.
 
 ## Quick start on fresh Ubuntu
 
@@ -31,7 +59,7 @@ sudo apt install open-vm-tools open-vm-tools-desktop
 sudo apt-get update && sudo apt-get install -y git
 git clone https://github.com/PimOps/kingo-kit.git
 cd kingo-kit
-./scripts/bootstrap-ubuntu.sh
+./scripts/install-ubuntu.sh
 ```
 
 The installer uses Docker Engine on both Server and Desktop. Docker Desktop is unnecessary on Ubuntu for this stack and consumes additional resources. On Ubuntu Desktop, open the URLs in Firefox; on Ubuntu Server, use SSH port forwarding or set up VM port forwarding as described below.
@@ -49,29 +77,30 @@ The first run downloads several large images and both datasets. It can take 10â€
 After installation:
 
 ```bash
-./kingo urls
-./kingo status
+kingo urls
+kingo status
 ollama launch claude
 ```
 
-`ollama launch claude` is interactive the first time: it helps the student sign in/select an Ollama Cloud model and configures Claude Code. Ollama runs on Ubuntu itself, not in Docker, so coding tools can work naturally with files in the cloned repository.
+On Ubuntu, `ollama launch claude` is interactive the first time: it helps the student sign in/select an Ollama Cloud model and configures Claude Code. Ollama runs on Ubuntu itself, not in Docker, so coding tools can work naturally with files in `~/Kingokit`. This component is omitted from the macOS and Windows/WSL installations.
 
 ## Daily commands
 
 ```bash
-./kingo up                 # start/update the lab
-./kingo down               # stop it without deleting data
-./kingo status             # container status and health
-./kingo health metabase    # health-check details and recent logs
-./kingo urls               # URLs and usernames
-./kingo credentials        # local classroom credentials
-./kingo logs n8n           # follow one service's logs
-./kingo app jupyter up     # manage only one application
-./kingo app qdrant up      # start only Qdrant
-./kingo app metabase logs  # follow one application's logs
-./kingo docker ps          # Docker CLI through the group-access fallback
-./kingo samples            # retry/finish sample-data loading
-./kingo psql               # warehouse SQL prompt
+kingo up                 # start/update the lab
+kingo down               # stop it without deleting data
+kingo status             # container status and health
+kingo health metabase    # health-check details and recent logs
+kingo urls               # URLs and usernames
+kingo credentials        # local classroom credentials
+kingo mcp                # MCP endpoint, bearer token, and client example
+kingo logs n8n           # follow one service's logs
+kingo app jupyter up     # manage only one application
+kingo app qdrant up      # start only Qdrant
+kingo app metabase logs  # follow one application's logs
+kingo docker ps          # Docker CLI through the group-access fallback
+kingo samples            # retry/finish sample-data loading
+kingo psql               # warehouse SQL prompt
 ```
 
 `make up`, `make down`, `make status`, and similar aliases are also provided.
@@ -84,6 +113,7 @@ Every application has its own folder and standalone Compose file:
 |---|---|
 | `apps/postgres/` | PostgreSQL, pgvector, PostGIS, schemas, and application users |
 | `apps/jupyter/` | JupyterLab and its persistent home volume |
+| `apps/jupyter-mcp/` | Authenticated Streamable HTTP bridge for local AI assistants |
 | `apps/langflow/` | Langflow |
 | `apps/n8n/` | n8n |
 | `apps/metabase/` | Metabase and its automatic warehouse setup helper |
@@ -106,7 +136,8 @@ See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intend
 
 | Service | Default URL/port | First login |
 |---|---:|---|
-| JupyterLab | <http://localhost:8888> | Token from `./kingo urls` |
+| JupyterLab | <http://localhost:8888> | No login required |
+| Jupyter MCP | <http://localhost:4040/mcp> | Bearer token from `kingo mcp` |
 | Langflow | <http://localhost:7860> | Auto-login classroom instance |
 | n8n | <http://localhost:5678> | Create the local owner on first visit |
 | Metabase | <http://localhost:3000> | From `./kingo credentials` |
@@ -114,19 +145,32 @@ See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intend
 | Qdrant dashboard | <http://localhost:6333/dashboard> | Local classroom instance; no login |
 | PostgreSQL | `localhost:5432` | From `./kingo credentials` |
 
-Start with `notebooks/00_kingo_kit_welcome.ipynb` in JupyterLab.
+Start with `jupyter_examples/00_kingo_kit_welcome.ipynb` in JupyterLab. It is a writable copy stored in `~/Kingokit/jupyter_examples` on the host.
+
+Notebook shell commands run from the directory containing the open notebook. For a separate `uv` project, create and enter a folder under the writable workspace first:
+
+```python
+from pathlib import Path
+Path("/home/jovyan/work/my-project").mkdir(exist_ok=True)
+%cd /home/jovyan/work/my-project
+!uv init
+```
+
+Local AI assistants that support MCP can control Jupyter notebooks and kernels through the authenticated Streamable HTTP endpoint. Run `kingo mcp` for the endpoint and bearer token, and see [docs/jupyter-mcp.md](docs/jupyter-mcp.md) for client examples and security guidance.
 
 ## Shared student files
 
-The launcher creates a Git-ignored `kingokit/` folder in the cloned repository. Files placed there remain ordinary host files, so students can open and save them with Finder, Windows Explorer, or Ubuntu's Files application while also using them inside the containers:
+The installer and launcher create `~/Kingokit`. Files placed there remain ordinary host files, so students can open and save them with Finder, Windows Explorer, or Ubuntu's Files application while also using them inside the containers. For easier discovery, the macOS installer adds a `Kingokit` link in Documents and the WSL installer adds a `Kingokit` shortcut to the actual Windows Documents folder. These links point to the canonical `~/Kingokit` folder; they do not duplicate or move student files. The installer leaves an existing item with the same name untouched.
+
+Keeping the canonical folder in the user's home directory avoids requiring Docker Desktop to continuously access macOS's privacy-protected Documents folder and avoids storing container workloads on the slower Windows-mounted filesystem under `/mnt/c`. Existing installations using the former `~/kingokit` name are renamed automatically without deleting their contents:
 
 | Application | Path inside the container |
 |---|---|
-| JupyterLab | `/home/jovyan/work/kingokit` (shown as `kingokit` in the file browser) |
+| JupyterLab | `/home/jovyan/work` (the file browser opens directly here) |
 | Langflow | `/app/kingokit` |
 | n8n | `/home/node/kingokit` |
 
-The shared folder survives `./kingo down` and `./kingo reset --yes` because it is not a Docker volume. Its contents are intentionally excluded from Git so students do not accidentally commit personal datasets or generated files.
+The shared folder survives `kingo down`, `kingo reset --yes`, and application upgrades because it is not a Docker volume or part of the installed application directory. At startup, missing example notebooks are copied into `~/Kingokit/jupyter_examples`. Existing copies are never overwritten, so student edits are retained. An existing `~/Kingokit/examples` folder is renamed automatically when the new name is not already present.
 
 ## Database design
 
@@ -152,21 +196,22 @@ ssh -L 8888:localhost:8888 \
     -L 8978:localhost:8978 \
     -L 6333:localhost:6333 \
     -L 6334:localhost:6334 \
+    -L 4040:localhost:4040 \
     -L 5432:localhost:5432 student@UBUNTU_IP
 ```
 
-For a trusted, firewalled classroom/bridged network, changing `BIND_ADDRESS=0.0.0.0` exposes the services on the Ubuntu machine's IP. Do not do this on a public network: these are local teaching services, not a hardened internet deployment.
+For a trusted, firewalled classroom/bridged network, changing `BIND_ADDRESS=0.0.0.0` exposes the services on the Ubuntu machine's IP. Do not do this on a public network: these are local teaching services, not a hardened internet deployment. JupyterLab deliberately has no login, so keeping it on loopback or behind an SSH tunnel is especially important.
 
 Qdrant is intentionally unauthenticated for local classroom use and is bound to loopback by default. It stores and searches vectors but does not generate embeddings, run an LLM, or download any model.
 
 ## Installation options
 
 ```bash
-./scripts/bootstrap-ubuntu.sh --skip-samples
-./scripts/bootstrap-ubuntu.sh --skip-ollama
+./scripts/install-ubuntu.sh --skip-samples
+./scripts/install-ubuntu.sh --skip-ollama
 ```
 
-If samples were skipped or the download was interrupted, run `./kingo samples` later. The loader records completed datasets and will not duplicate them.
+If samples were skipped or the download was interrupted, run `kingo samples` later. The loader records completed datasets and will not duplicate them.
 
 To reapply only the wallpaper and Firefox homepage configuration:
 
@@ -176,7 +221,7 @@ To reapply only the wallpaper and Firefox homepage configuration:
 
 ## Configuration and upgrades
 
-The first run creates `.env` from `.env.example` and generates random local passwords. `.env` is ignored by Git. Instructors can change ports, bind address, timezone, image versions, or credentials before starting the stack.
+The first run creates `~/.config/kingokit/.env` from `.env.example` and generates random local passwords. Instructors can change ports, bind address, timezone, image versions, or credentials before starting the installed stack. When running directly from a development clone, `.env` remains in the repository and is ignored by Git.
 
 Before dependent applications start, `./kingo up` idempotently reconciles PostgreSQL's required extensions (`vector`, `citext`, PostGIS, and `uuid-ossp`). This also upgrades existing student volumes safely when a newer application version introduces an extension requirement.
 
@@ -186,19 +231,35 @@ To apply a Compose or image update:
 ./kingo up
 ```
 
-To permanently remove all container data and start over:
+To factory-reset all application state and immediately start a clean stack:
 
 ```bash
-./kingo reset --yes
+kingo reset --yes
 ```
 
-This deletes databases, n8n workflows, Langflow state, and web-app settings. Files saved in the repository's `notebooks/` and `kingokit/` directories remain.
+This deletes databases, n8n workflows, Langflow state, and web-app settings, but retains downloaded images and the Kingo Kit installation. Files saved in `~/Kingokit` remain. Sample databases are not downloaded automatically after a reset; run `kingo samples` when they are needed.
+
+## Uninstalling after the semester
+
+Run the interactive uninstaller from any directory:
+
+```bash
+kingo uninstall
+```
+
+For a managed or non-interactive machine, confirmation can be supplied explicitly:
+
+```bash
+kingo uninstall --yes
+```
+
+Uninstall removes all Kingo Kit containers, images, volumes, its Docker network, generated credentials, the terminal command, and the installed application files. It always retains the student's work in `~/Kingokit`. It does **not** uninstall Docker Desktop, Docker Engine, or WSL. On Ubuntu, it also retains the separately installed Ollama host application.
 
 ## Troubleshooting
 
 - `permission denied` for direct Docker commands: run `./kingo doctor` to distinguish account membership, session membership, daemon status, and socket permissions. `./kingo docker ps` works through Kingo's group-access fallback. If the account is listed in the Docker group but the current session is not, `newgrp docker` activates it in the current terminal. If the account was not added, run `sudo usermod -aG docker "$USER"` once and reboot Ubuntu.
 - A service is `unhealthy`: inspect its health-check history and recent logs with `./kingo health SERVICE`, for example `./kingo health metabase`.
-- A port is already in use: edit that service's host port in `.env`, then run `./kingo up`.
+- A port is already in use: edit that service's host port in `~/.config/kingokit/.env`, then run `kingo up`.
 - Sample loading failed: verify internet access, then run `./kingo samples`. AdventureWorks and WWI are independently checkpointed.
 - Low memory: stop unused apps with `./kingo app langflow down` and `./kingo app metabase down`, or give the VM more RAM.
 - Metabase was manually initialized with different credentials before provisioning completed: sign in and add PostgreSQL using the settings in `docs/connections.md`, or reset the stack on a disposable fresh install.

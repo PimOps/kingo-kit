@@ -1,5 +1,6 @@
 services:
   cloudbeaver:
+    container_name: kingo-cloudbeaver
     image: ${CLOUDBEAVER_IMAGE:-dbeaver/cloudbeaver:26.0.5}
     restart: unless-stopped
     environment:
@@ -12,7 +13,9 @@ services:
       - "${BIND_ADDRESS:-127.0.0.1}:${CLOUDBEAVER_PORT:-8978}:8978"
     volumes:
       - cloudbeaver-workspace:/opt/cloudbeaver/workspace
-    networks: [kingo-cloudbeaver]
+    networks:
+      kingo-cloudbeaver:
+        aliases: [kingo-cloudbeaver]
 
 volumes:
   cloudbeaver-workspace:

@@ -1,23 +1,26 @@
 services:
   langflow:
+    container_name: kingo-langflow
     image: ${LANGFLOW_IMAGE:-langflowai/langflow:1.9.2}
     restart: unless-stopped
     environment:
       LANGFLOW_HOST: 0.0.0.0
       LANGFLOW_PORT: 7860
       LANGFLOW_SECRET_KEY: ${LANGFLOW_SECRET_KEY}
-      LANGFLOW_DATABASE_URL: postgresql://langflow:${LANGFLOW_DB_PASSWORD}@postgres:5432/kingo?options=-csearch_path%3Dlangflow
+      LANGFLOW_DATABASE_URL: postgresql://langflow:${LANGFLOW_DB_PASSWORD}@kingo-postgres:5432/kingo?options=-csearch_path%3Dlangflow
       LANGFLOW_AUTO_LOGIN: "true"
       LANGFLOW_SUPERUSER: kingo
       LANGFLOW_SUPERUSER_PASSWORD: ${LANGFLOW_SECRET_KEY}
       LANGFLOW_NEW_USER_IS_ACTIVE: "true"
-      QDRANT_URL: http://qdrant:6333
+      QDRANT_URL: http://kingo-qdrant:6333
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${LANGFLOW_PORT:-7860}:7860"
     volumes:
       - langflow-data:/app/langflow
-      - ../../kingokit:/app/kingokit
-    networks: [kingo-langflow]
+      - ${KINGOKIT_SHARED_DIR:?Set KINGOKIT_SHARED_DIR}:/app/kingokit
+    networks:
+      kingo-langflow:
+        aliases: [kingo-langflow]
 
 volumes:
   langflow-data:

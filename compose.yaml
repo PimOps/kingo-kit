@@ -5,18 +5,20 @@ name: ${COMPOSE_PROJECT_NAME:-kingo-kit}
 # upgrades, and classroom troubleshooting.
 include:
   - path: apps/postgres/compose.yaml
-    env_file: .env
+    env_file: ${KINGOKIT_ENV_FILE:-.env}
   - path: apps/jupyter/compose.yaml
-    env_file: .env
+    env_file: ${KINGOKIT_ENV_FILE:-.env}
+  - path: apps/jupyter-mcp/compose.yaml
+    env_file: ${KINGOKIT_ENV_FILE:-.env}
   - path: apps/langflow/compose.yaml
-    env_file: .env
+    env_file: ${KINGOKIT_ENV_FILE:-.env}
   - path: apps/n8n/compose.yaml
-    env_file: .env
+    env_file: ${KINGOKIT_ENV_FILE:-.env}
   - path: apps/metabase/compose.yaml
-    env_file: .env
+    env_file: ${KINGOKIT_ENV_FILE:-.env}
   - path: apps/cloudbeaver/compose.yaml
-    env_file: .env
+    env_file: ${KINGOKIT_ENV_FILE:-.env}
   - path: apps/qdrant/compose.yaml
-    env_file: .env
+    env_file: ${KINGOKIT_ENV_FILE:-.env}
   - path: apps/sample-data/compose.yaml
-    env_file: .env
+    env_file: ${KINGOKIT_ENV_FILE:-.env}

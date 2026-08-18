@@ -1,0 +1,34 @@
+services:
+  jupyter-mcp:
+    container_name: kingo-jupyter-mcp
+    image: ${JUPYTER_MCP_IMAGE:-datalayer/jupyter-mcp-server:latest}
+    restart: unless-stopped
+    environment:
+      JUPYTER_URL: http://kingo-jupyter:8888
+      MCP_TOKEN: ${JUPYTER_MCP_TOKEN}
+      ALLOW_IMG_OUTPUT: "true"
+    command:
+      - --transport
+      - streamable-http
+      - --port
+      - "4040"
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${JUPYTER_MCP_PORT:-4040}:4040"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:4040/api/healthz', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 15s
+    networks:
+      kingo-jupyter-mcp:
+        aliases: [kingo-jupyter-mcp]
+
+networks:
+  kingo-jupyter-mcp:
+    name: kingo-kit
+    external: true

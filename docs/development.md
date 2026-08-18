@@ -118,6 +118,7 @@ Host kingo-vm
     ControlPersist 10m
 
     LocalForward 8888 127.0.0.1:8888
+    LocalForward 4040 127.0.0.1:4040
     LocalForward 7860 127.0.0.1:7860
     LocalForward 5678 127.0.0.1:5678
     LocalForward 3000 127.0.0.1:3000
@@ -136,6 +137,7 @@ ssh kingo-vm
 While that SSH connection is open, the Kingo Kit services are available in the Mac browser at their normal addresses:
 
 - JupyterLab: <http://localhost:8888>
+- Jupyter MCP: <http://localhost:4040/mcp> (bearer token from `kingo mcp`)
 - Langflow: <http://localhost:7860>
 - n8n: <http://localhost:5678>
 - Metabase: <http://localhost:3000>

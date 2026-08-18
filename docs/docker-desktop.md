@@ -4,6 +4,8 @@ Kingo Kit can run directly on a macOS or Windows laptop. Students do not need to
 
 The Dockerized application stack is portable. The Ubuntu bootstrap script is not: it installs Linux packages and configures Docker Engine, Unix groups, GNOME wallpaper, and Firefox system policy. Mac and Windows users should install Docker Desktop themselves and start only the Compose stack.
 
+The macOS and Windows/WSL Kingo Kit installers intentionally install no additional host-native applications. Tools that require broad host shell, Git, credential, or project access are omitted unless they can be provided safely and usefully as a containerized service.
+
 ## Compatibility overview
 
 | Component | macOS | Windows |
@@ -14,10 +16,10 @@ The Dockerized application stack is portable. The Ubuntu bootstrap script is not
 | Named persistent volumes | Supported | Supported |
 | AdventureWorks and WWI import | Supported | Supported |
 | Browser access through `localhost` | Supported | Supported |
+| Jupyter MCP for local AI assistants | Supported | Supported |
 | `./kingo` Bash launcher | Supported | Supported through WSL 2 or Git Bash |
 | Native PowerShell launcher | Not applicable | Not implemented yet |
 | Ubuntu wallpaper and Firefox policy | Not applicable | Not applicable |
-| Ollama and Claude launcher | Install separately on the host | Install separately on the host |
 
 The published images used by Kingo Kit provide Linux `amd64` and `arm64` variants, including PostgreSQL/pgvector, JupyterLab, Langflow, n8n, Metabase, CloudBeaver, Qdrant, and AdventureWorks.
 
@@ -31,25 +33,25 @@ macOS supplies the utilities needed by the Bash launcher. Students should not in
 
 1. Install and start [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/). Choose the installer matching Apple silicon or Intel.
 2. Install Git using the method already used by the student or instructor. Apple's Command Line Tools provide Git if it is not already present.
-3. Clone and start Kingo Kit:
+3. Clone and install Kingo Kit:
 
 ```bash
 git clone https://github.com/PimOps/kingo-kit.git
 cd kingo-kit
-./scripts/generate-env.sh
-./kingo up
-./kingo samples
+./scripts/install-macos.sh
 ```
 
 Open the application links shown by:
 
 ```bash
-./kingo urls
+kingo urls
 ```
 
-The first launcher run also creates `kingokit/` inside the repository. It is a shared host folder mounted into JupyterLab, Langflow, and n8n, so files saved by those containers are available directly in Finder or Windows Explorer.
+The installer creates `~/Kingokit` and installs the application separately in `~/Library/Application Support/Kingo Kit`. It also creates a `Kingokit` link in the user's Documents folder, making the student files easy to find in Finder. The link points to `~/Kingokit`; files are not duplicated or moved. Keeping the real folder outside Documents avoids requiring Docker Desktop to continuously access a macOS privacy-protected folder. If an item named `Kingokit` already exists in Documents, the installer leaves it untouched.
 
-Do not run `scripts/bootstrap-ubuntu.sh` on macOS.
+The shared folder is mounted into JupyterLab, Langflow, and n8n, so files saved by those containers are available directly in Finder.
+
+Do not run `scripts/bootstrap-ubuntu.sh` or `scripts/install-ubuntu.sh` on macOS.
 
 ## Windows setup: recommended WSL 2 workflow
 
@@ -60,12 +62,14 @@ Open WSL and run:
 ```bash
 git clone https://github.com/PimOps/kingo-kit.git
 cd kingo-kit
-./scripts/generate-env.sh
-./kingo up
-./kingo samples
+./scripts/install-wsl.sh
 ```
 
 The applications open in the normal Windows browser through `localhost`.
+
+The student folder is stored in the WSL home directory at `~/Kingokit`. The installer adds a `Kingokit` shortcut to the user's actual Windows Documents folder, so students can open it directly from Windows Explorer. The shortcut points into WSL; files are not duplicated or moved. Keeping the real folder in WSL avoids the filesystem-performance and Linux-permission limitations of storing container workloads under `/mnt/c`.
+
+The folder is also reachable directly from Windows Explorer under `\\wsl$\DISTRIBUTION_NAME\home\USERNAME\Kingokit`. If an item named `Kingokit` already exists in Windows Documents, the installer leaves it untouched.
 
 See Docker's [WSL development guide](https://docs.docker.com/desktop/features/wsl/use-wsl/) for editor and filesystem recommendations.
 
@@ -81,16 +85,6 @@ To make native Windows fully supported, Kingo Kit should add:
 - automated parity checks between the Bash and PowerShell launchers.
 
 Until those additions are complete, WSL 2 is the recommended Windows workflow.
-
-## Host-native Ollama and Claude Code
-
-The Compose stack does not install Ollama on macOS or Windows. Install Ollama using its official host installer, then configure Claude Code with:
-
-```bash
-ollama launch claude
-```
-
-Kingo Kit does not pull or install a local language model. Students should select an Ollama Cloud model during configuration.
 
 ## Resources
 
@@ -110,11 +104,13 @@ Stop an unused application without deleting its volume:
 ./kingo app langflow down
 ```
 
+At the end of the semester, `kingo uninstall` removes the complete Kingo Kit Docker stack and installed application files while retaining `~/Kingokit`. Docker Desktop itself is deliberately left installed.
+
 ## Networking and security
 
-All host ports bind to `127.0.0.1` by default, so the applications are available to the student's browser without being exposed to the surrounding network. Do not change `BIND_ADDRESS` to `0.0.0.0` on an untrusted network.
+All host ports bind to `127.0.0.1` by default, so the applications are available to the student's browser without being exposed to the surrounding network. JupyterLab intentionally requires no token or password. Do not change `BIND_ADDRESS` to `0.0.0.0` on an untrusted network.
 
-Qdrant is intentionally unauthenticated for local classroom use. Its loopback binding is therefore important. Docker services communicate through the private `kingo-kit` network using names such as `postgres` and `qdrant`.
+Qdrant is intentionally unauthenticated for local classroom use. Its loopback binding is therefore important. Docker services communicate through the private `kingo-kit` network using stable Kingo-specific names such as `kingo-postgres` and `kingo-qdrant`.
 
 ## Platform-specific features
 

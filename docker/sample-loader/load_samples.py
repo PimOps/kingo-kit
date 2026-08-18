@@ -83,7 +83,7 @@ def load_adventureworks() -> None:
     restore_env = os.environ | {"PGPASSWORD": target.password or ""}
     dump = subprocess.Popen(
         [
-            "pg_dump", "--host", source.hostname or "adventureworks-source",
+            "pg_dump", "--host", source.hostname or "kingo-adventureworks-source",
             "--port", str(source.port or 5432), "--username", source.username or "postgres",
             "--dbname", (source.path or "/postgres").lstrip("/"),
             "--no-owner", "--no-privileges", "--clean", "--if-exists",
@@ -100,7 +100,7 @@ def load_adventureworks() -> None:
     assert dump.stdout is not None
     restore = subprocess.run(
         [
-            "psql", "--host", target.hostname or "postgres", "--port", str(target.port or 5432),
+            "psql", "--host", target.hostname or "kingo-postgres", "--port", str(target.port or 5432),
             "--username", target.username or "postgres", "--dbname", (target.path or "/warehouse").lstrip("/"),
             "--set", "ON_ERROR_STOP=1",
         ],

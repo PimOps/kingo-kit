@@ -2,14 +2,14 @@
 set -Eeuo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-env_file="$repo_dir/.env"
+env_file="${KINGOKIT_ENV_FILE:-$repo_dir/.env}"
 
-if [[ -f "$env_file" ]]; then
-  echo "Using existing $env_file"
-  exit 0
+created=false
+if [[ ! -f "$env_file" ]]; then
+  mkdir -p "$(dirname "$env_file")"
+  cp "$repo_dir/.env.example" "$env_file"
+  created=true
 fi
-
-cp "$repo_dir/.env.example" "$env_file"
 
 random_secret() {
   # Hex is URL-, YAML-, SQL-, and shell-safe, which matters because these values
@@ -27,19 +27,33 @@ replace_value() {
   sed -i.bak "s|^${key}=.*|${key}=${value}|" "$env_file"
 }
 
-replace_value POSTGRES_PASSWORD "$(random_secret 18)"
-replace_value N8N_DB_PASSWORD "$(random_secret 18)"
-replace_value LANGFLOW_DB_PASSWORD "$(random_secret 18)"
-replace_value LANGGRAPH_DB_PASSWORD "$(random_secret 18)"
-replace_value METABASE_DB_PASSWORD "$(random_secret 18)"
-replace_value CLOUDBEAVER_DB_PASSWORD "$(random_secret 18)"
-replace_value JUPYTER_DB_PASSWORD "$(random_secret 18)"
-replace_value STUDENT_DB_PASSWORD "$(random_secret 18)"
-replace_value JUPYTER_TOKEN "$(random_secret 20)"
-replace_value LANGFLOW_SECRET_KEY "$(random_secret 24)"
-replace_value N8N_ENCRYPTION_KEY "$(random_secret 24)"
-replace_value METABASE_ADMIN_PASSWORD "$(random_secret 18)"
-replace_value CLOUDBEAVER_ADMIN_PASSWORD "$(random_secret 18)"
+ensure_secret() {
+  local key="$1" bytes="$2" current
+  current="$(sed -n "s/^${key}=//p" "$env_file" | tail -n 1)"
+  if [[ -z "$current" ]]; then
+    printf '%s=%s\n' "$key" "$(random_secret "$bytes")" >>"$env_file"
+  elif [[ "$current" == CHANGE_ME_* ]]; then
+    replace_value "$key" "$(random_secret "$bytes")"
+  fi
+}
+
+ensure_secret POSTGRES_PASSWORD 18
+ensure_secret N8N_DB_PASSWORD 18
+ensure_secret LANGFLOW_DB_PASSWORD 18
+ensure_secret LANGGRAPH_DB_PASSWORD 18
+ensure_secret METABASE_DB_PASSWORD 18
+ensure_secret CLOUDBEAVER_DB_PASSWORD 18
+ensure_secret JUPYTER_DB_PASSWORD 18
+ensure_secret STUDENT_DB_PASSWORD 18
+ensure_secret JUPYTER_MCP_TOKEN 24
+ensure_secret LANGFLOW_SECRET_KEY 24
+ensure_secret N8N_ENCRYPTION_KEY 24
+ensure_secret METABASE_ADMIN_PASSWORD 18
+ensure_secret CLOUDBEAVER_ADMIN_PASSWORD 18
 rm -f "$env_file.bak"
 chmod 600 "$env_file"
-echo "Created $env_file with random local credentials."
+if [[ "$created" == true ]]; then
+  echo "Created $env_file with random local credentials."
+else
+  echo "Checked $env_file and added any missing Kingo Kit credentials."
+fi

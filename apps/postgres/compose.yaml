@@ -1,5 +1,6 @@
 services:
   postgres:
+    container_name: kingo-postgres
     image: ${POSTGRES_IMAGE:-kingo-kit-postgres:pg17}
     build:
       context: ../..
@@ -31,7 +32,8 @@ services:
       start_period: 10s
     networks:
       kingo-postgres:
-        aliases: [postgres]
+        # Keep the former generic alias for existing saved app connections.
+        aliases: [kingo-postgres, postgres]
 
 volumes:
   postgres-data:
