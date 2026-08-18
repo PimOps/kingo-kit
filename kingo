@@ -80,6 +80,7 @@ Commands:
   app NAME ACTION Manage one app: up, down, restart, status, or logs
   import DATASET  Load one sample dataset: wwi or adventureworks
   psql            Open psql in the warehouse as the postgres administrator
+  calculate       Show the stack's Docker disk footprint (images + volumes)
   reset --yes     Factory-reset the apps and start a fresh stack
   uninstall       Remove Kingo Kit after confirmation (keeps ~/Kingokit)
                   Add --keep-images (or -keepimages) to retain Docker images
@@ -90,6 +91,72 @@ ensure_kingo_network() {
   if ! docker network inspect kingo-kit >/dev/null 2>&1; then
     docker network create kingo-kit >/dev/null
   fi
+}
+
+# Docker reports sizes as decimal (SI) human strings like "1.22GB"; convert
+# back to bytes so per-item sizes can be summed into one accurate total.
+human_size_to_bytes() {
+  local input="$1" num unit mult
+  if [[ "$input" =~ ^([0-9.]+)([A-Za-z]+)$ ]]; then
+    num="${BASH_REMATCH[1]}"
+    unit="$(printf '%s' "${BASH_REMATCH[2]}" | tr 'A-Z' 'a-z')"
+  else
+    echo 0
+    return
+  fi
+  case "$unit" in
+    b) mult=1 ;;
+    kb) mult=1000 ;;
+    mb) mult=1000000 ;;
+    gb) mult=1000000000 ;;
+    tb) mult=1000000000000 ;;
+    *) mult=1 ;;
+  esac
+  awk -v n="$num" -v m="$mult" 'BEGIN{printf "%.0f", n*m}'
+}
+
+bytes_to_gb() {
+  awk -v b="$1" 'BEGIN{printf "%.2f", b/1000000000}'
+}
+
+calculate_footprint() {
+  ensure_docker_access "$@"
+  local project="${COMPOSE_PROJECT_NAME:-kingo-kit}"
+  local line name size bytes images_bytes=0 volumes_bytes=0
+
+  echo "Kingo Kit Docker disk footprint on this machine:"
+  echo
+  echo "Images:"
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    name="$(awk '{print $1}' <<<"$line")"
+    size="$(awk '{print $6}' <<<"$line")"
+    bytes="$(human_size_to_bytes "$size")"
+    images_bytes=$((images_bytes + bytes))
+    printf '  %-22s %10s\n' "$name" "$size"
+  done < <("${compose[@]}" --profile samples images 2>/dev/null | tail -n +2)
+
+  echo
+  echo "Volumes:"
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    name="$(awk '{print $1}' <<<"$line")"
+    size="$(awk '{print $3}' <<<"$line")"
+    bytes="$(human_size_to_bytes "$size")"
+    volumes_bytes=$((volumes_bytes + bytes))
+    printf '  %-32s %10s\n' "$name" "$size"
+  done < <(docker system df -v 2>/dev/null | awk -v proj="$project" '
+    /^VOLUME NAME/ {invol=1; next}
+    /^$/ {invol=0}
+    invol && index($1, proj"_")==1 {print}
+  ')
+
+  echo
+  printf 'Images total:    %6s GB\n' "$(bytes_to_gb "$images_bytes")"
+  printf 'Volumes total:   %6s GB\n' "$(bytes_to_gb "$volumes_bytes")"
+  printf 'Total footprint: %6s GB\n' "$(bytes_to_gb "$((images_bytes + volumes_bytes))")"
+  echo
+  echo "Run 'kingo uninstall' to reclaim this space, or '--keep-images' to keep the images."
 }
 
 ensure_container_names_available() {
@@ -510,6 +577,7 @@ EOF
     ensure_docker_access "$@"
     "${compose[@]}" exec postgres psql -U postgres -d warehouse
     ;;
+  calculate) calculate_footprint "$@" ;;
   reset)
     if [[ "${2:-}" != "--yes" ]]; then
       echo "This factory reset permanently deletes Kingo Kit databases, app settings, and workflows, then starts a fresh stack." >&2
