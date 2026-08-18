@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-required=(N8N_DB_PASSWORD LANGFLOW_DB_PASSWORD LANGGRAPH_DB_PASSWORD METABASE_DB_PASSWORD CLOUDBEAVER_DB_PASSWORD JUPYTER_DB_PASSWORD STUDENT_DB_PASSWORD)
+required=(N8N_DB_PASSWORD LANGFLOW_DB_PASSWORD LANGGRAPH_DB_PASSWORD METABASE_DB_PASSWORD CLOUDBEAVER_DB_PASSWORD JUPYTER_DB_PASSWORD STUDENT_DB_USER STUDENT_DB_PASSWORD)
 for name in "${required[@]}"; do
   if [[ -z "${!name:-}" ]]; then
     echo "Missing required database password: ${name}" >&2
@@ -13,6 +13,10 @@ sql_quote() { printf "%s" "$1" | sed "s/'/''/g"; }
 
 create_role() {
   local role="$1" password
+  if [[ ! "$role" =~ ^[a-z_][a-z0-9_]*$ ]]; then
+    echo "Invalid PostgreSQL role name: $role" >&2
+    return 1
+  fi
   password="$(sql_quote "$2")"
   psql --username "$POSTGRES_USER" --dbname postgres --set ON_ERROR_STOP=1 <<SQL
 DO \$\$
@@ -33,14 +37,14 @@ create_role langgraph "$LANGGRAPH_DB_PASSWORD"
 create_role metabase "$METABASE_DB_PASSWORD"
 create_role cloudbeaver "$CLOUDBEAVER_DB_PASSWORD"
 create_role jupyter "$JUPYTER_DB_PASSWORD"
-create_role student "$STUDENT_DB_PASSWORD"
+create_role "$STUDENT_DB_USER" "$STUDENT_DB_PASSWORD"
 
 psql --username "$POSTGRES_USER" --dbname postgres --set ON_ERROR_STOP=1 <<'SQL'
 SELECT 'CREATE DATABASE warehouse OWNER postgres'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'warehouse')\gexec
 SQL
 
-psql --username "$POSTGRES_USER" --dbname kingo --set ON_ERROR_STOP=1 <<'SQL'
+psql --username "$POSTGRES_USER" --dbname kingo --set ON_ERROR_STOP=1 <<SQL
 CREATE SCHEMA IF NOT EXISTS n8n AUTHORIZATION n8n;
 CREATE SCHEMA IF NOT EXISTS langflow AUTHORIZATION langflow;
 CREATE SCHEMA IF NOT EXISTS langgraph AUTHORIZATION langgraph;
@@ -54,14 +58,14 @@ ALTER ROLE langgraph IN DATABASE kingo SET search_path = langgraph, shared, publ
 ALTER ROLE cloudbeaver IN DATABASE kingo SET search_path = cloudbeaver;
 ALTER ROLE jupyter IN DATABASE kingo SET search_path = jupyter, shared, public;
 
-GRANT CONNECT ON DATABASE kingo TO n8n, langflow, langgraph, metabase, cloudbeaver, jupyter, student;
-GRANT USAGE ON SCHEMA shared, public TO langgraph, jupyter, student;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA shared TO langgraph, jupyter, student;
-ALTER DEFAULT PRIVILEGES IN SCHEMA shared GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO langgraph, jupyter, student;
-ALTER DEFAULT PRIVILEGES IN SCHEMA shared GRANT USAGE, SELECT ON SEQUENCES TO langgraph, jupyter, student;
+GRANT CONNECT ON DATABASE kingo TO n8n, langflow, langgraph, metabase, cloudbeaver, jupyter, "$STUDENT_DB_USER";
+GRANT USAGE ON SCHEMA shared, public TO langgraph, jupyter, "$STUDENT_DB_USER";
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA shared TO langgraph, jupyter, "$STUDENT_DB_USER";
+ALTER DEFAULT PRIVILEGES IN SCHEMA shared GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO langgraph, jupyter, "$STUDENT_DB_USER";
+ALTER DEFAULT PRIVILEGES IN SCHEMA shared GRANT USAGE, SELECT ON SEQUENCES TO langgraph, jupyter, "$STUDENT_DB_USER";
 SQL
 
-psql --username "$POSTGRES_USER" --dbname warehouse --set ON_ERROR_STOP=1 <<'SQL'
+psql --username "$POSTGRES_USER" --dbname warehouse --set ON_ERROR_STOP=1 <<SQL
 CREATE SCHEMA IF NOT EXISTS wwi AUTHORIZATION postgres;
 CREATE SCHEMA IF NOT EXISTS kingo_meta AUTHORIZATION postgres;
 CREATE TABLE IF NOT EXISTS kingo_meta.sample_loads (
@@ -70,9 +74,9 @@ CREATE TABLE IF NOT EXISTS kingo_meta.sample_loads (
   details jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 
-GRANT CONNECT ON DATABASE warehouse TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, student;
-GRANT USAGE ON SCHEMA public, wwi TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, student;
-GRANT SELECT ON ALL TABLES IN SCHEMA public, wwi TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, student;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, student;
-ALTER DEFAULT PRIVILEGES IN SCHEMA wwi GRANT SELECT ON TABLES TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, student;
+GRANT CONNECT ON DATABASE warehouse TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, "$STUDENT_DB_USER";
+GRANT USAGE ON SCHEMA public, wwi TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, "$STUDENT_DB_USER";
+GRANT SELECT ON ALL TABLES IN SCHEMA public, wwi TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, "$STUDENT_DB_USER";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, "$STUDENT_DB_USER";
+ALTER DEFAULT PRIVILEGES IN SCHEMA wwi GRANT SELECT ON TABLES TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, "$STUDENT_DB_USER";
 SQL

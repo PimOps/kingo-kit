@@ -24,6 +24,7 @@ services:
       TARGET_DSN: postgresql://postgres:${POSTGRES_PASSWORD}@kingo-postgres:5432/warehouse
       ADVENTUREWORKS_DSN: postgresql://postgres:${POSTGRES_PASSWORD}@kingo-adventureworks-source:5432/postgres
       WWI_CONTAINER_URL: ${WWI_CONTAINER_URL:-https://fabrictutorialdata.blob.core.windows.net/sampledata}
+      STUDENT_DB_USER: ${STUDENT_DB_USER:-kingouser}
     depends_on:
       adventureworks-source:
         condition: service_healthy

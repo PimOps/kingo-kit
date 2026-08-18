@@ -25,6 +25,7 @@ WWI_CONTAINER = os.environ.get(
     "https://fabrictutorialdata.blob.core.windows.net/sampledata",
 ).rstrip("/")
 WWI_PREFIX = "WideWorldImportersDW/tables/"
+STUDENT_DB_USER = os.environ.get("STUDENT_DB_USER", "kingouser")
 
 
 def is_loaded(dataset: str) -> bool:
@@ -56,7 +57,7 @@ def ensure_target_extensions() -> None:
 
 
 def grant_warehouse_read_access() -> None:
-    roles = sql.SQL(", ").join(map(sql.Identifier, ["metabase", "cloudbeaver", "jupyter", "langflow", "langgraph", "n8n", "student"]))
+    roles = sql.SQL(", ").join(map(sql.Identifier, ["metabase", "cloudbeaver", "jupyter", "langflow", "langgraph", "n8n", STUDENT_DB_USER]))
     with psycopg.connect(TARGET_DSN) as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT schema_name FROM information_schema.schemata "
@@ -253,8 +254,9 @@ def load_wwi() -> None:
                 total += load_parquet_url(conn, table_name, url, create=index == 0)
             counts[table_name] = total
         with conn.cursor() as cur:
-            cur.execute("GRANT USAGE ON SCHEMA wwi TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, student")
-            cur.execute("GRANT SELECT ON ALL TABLES IN SCHEMA wwi TO metabase, cloudbeaver, jupyter, langflow, langgraph, n8n, student")
+            roles = sql.SQL(", ").join(map(sql.Identifier, ["metabase", "cloudbeaver", "jupyter", "langflow", "langgraph", "n8n", STUDENT_DB_USER]))
+            cur.execute(sql.SQL("GRANT USAGE ON SCHEMA wwi TO {}").format(roles))
+            cur.execute(sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA wwi TO {}").format(roles))
     mark_loaded("wide_world_importers_dw", {"source": WWI_CONTAINER, "rows": counts})
 
 

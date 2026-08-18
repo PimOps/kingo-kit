@@ -72,7 +72,7 @@ On Ubuntu Desktop, the installer copies the Kingo Kit wallpaper to `/usr/local/s
 
 The AskKingo homepage is the students' launch portal for Kingo Kit. It can provide links to the containerized applications, classroom instructions, troubleshooting guidance, and course updates. Because this information is hosted on the website, instructors can update it centrally without changing the repository or reinstalling anything on the students' Ubuntu machines.
 
-The first run downloads several large images and both datasets. It can take 10–30 minutes depending on the connection. It is safe to rerun the installer.
+The first run downloads several large images and both datasets. It can take 10–30 minutes depending on the connection. The installer starts PostgreSQL first, waits for the web applications to be running, and imports the example databases only as its final step. The applications remain available while that import runs. It is safe to rerun the installer.
 
 After installation:
 
@@ -139,11 +139,17 @@ See [`apps/README.md`](apps/README.md) for direct Docker Compose commands intend
 | JupyterLab | <http://localhost:8888> | No login required |
 | Jupyter MCP | <http://localhost:4040/mcp> | Bearer token from `kingo mcp` |
 | Langflow | <http://localhost:7860> | Auto-login classroom instance |
-| n8n | <http://localhost:5678> | Create the local owner on first visit |
+| n8n | <http://localhost:5678> | `user@kingo.local` / `change_me_later` |
 | Metabase | <http://localhost:3000> | From `./kingo credentials` |
 | CloudBeaver | <http://localhost:8978> | From `./kingo credentials` |
 | Qdrant dashboard | <http://localhost:6333/dashboard> | Local classroom instance; no login |
 | PostgreSQL | `localhost:5432` | From `./kingo credentials` |
+
+Fresh installations use the same classroom credentials wherever an application
+requires a conventional login: username `kingouser`, email `user@kingo.local`,
+and password `change_me_later`. Run `kingo credentials` to see which form each
+service uses. Internal service-to-service database passwords and the Jupyter MCP
+bearer token remain randomly generated.
 
 Start with `jupyter_examples/00_kingo_kit_welcome.ipynb` in JupyterLab. It is a writable copy stored in `~/Kingokit/jupyter_examples` on the host.
 
@@ -221,7 +227,9 @@ To reapply only the wallpaper and Firefox homepage configuration:
 
 ## Configuration and upgrades
 
-The first run creates `~/.config/kingokit/.env` from `.env.example` and generates random local passwords. Instructors can change ports, bind address, timezone, image versions, or credentials before starting the installed stack. When running directly from a development clone, `.env` remains in the repository and is ignored by Git.
+The first run creates `~/.config/kingokit/.env` from `.env.example`. The classroom-facing accounts use the shared defaults above, while internal service passwords and tokens are generated randomly. Instructors can change ports, bind address, timezone, image versions, or credentials before starting the installed stack. When running directly from a development clone, `.env` remains in the repository and is ignored by Git.
+
+Students can change the n8n, Metabase, and CloudBeaver passwords in each application's account settings. Langflow remains in auto-login mode by default; set `LANGFLOW_AUTO_LOGIN=false` and change its superuser values in `.env` to require a login. To change the classroom PostgreSQL login, edit `STUDENT_DB_USER` and `STUDENT_DB_PASSWORD` in `.env`, then run `kingo up`; Kingo Kit reconciles that role without deleting data. Environment values initialize fresh web-app volumes but intentionally do not overwrite accounts already changed through an application's UI.
 
 Before dependent applications start, `./kingo up` idempotently reconciles PostgreSQL's required extensions (`vector`, `citext`, PostGIS, and `uuid-ossp`). This also upgrades existing student volumes safely when a newer application version introduces an extension requirement.
 

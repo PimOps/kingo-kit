@@ -54,6 +54,7 @@ if [[ "$start_stack" == true ]]; then
   fi
   "$install_dir/kingo" up
   if [[ "$load_samples" == true ]]; then
+    echo "Final step: loading the example databases. The applications are already running."
     "$install_dir/kingo" samples
   fi
 fi

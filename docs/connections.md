@@ -30,7 +30,7 @@ Sign in with the web credentials shown by `./kingo credentials`, select **New co
 | Host | `kingo-postgres` |
 | Port | `5432` |
 | Database | `warehouse` |
-| User | `student` |
+| User | `kingouser` (or `STUDENT_DB_USER` from `.env`) |
 | Password | `STUDENT_DB_PASSWORD` shown by `./kingo credentials` |
 
 Enable **Show all databases** if you also want to inspect the platform database. CloudBeaver keeps this connection in its persistent workspace.

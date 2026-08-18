@@ -139,14 +139,24 @@ echo "Created the shared student folder: $shared_dir"
 if ! "${docker_command[@]}" network inspect kingo-kit >/dev/null 2>&1; then
   "${docker_command[@]}" network create kingo-kit >/dev/null
 fi
+echo "  [1/3] Starting PostgreSQL..."
 "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
+"${compose[@]}" exec -T postgres \
+  /docker-entrypoint-initdb.d/10-kingo-init.sh >/dev/null
 "${compose[@]}" exec -T postgres \
   psql --username postgres --dbname postgres --set ON_ERROR_STOP=1 \
   --file /docker-entrypoint-initdb.d/20-required-extensions.sql >/dev/null
+
+echo "  [2/3] Starting web applications..."
 "${compose[@]}" up -d --build
+web_services=(jupyter jupyter-mcp langflow n8n metabase cloudbeaver qdrant)
+"${compose[@]}" up -d --wait --wait-timeout 300 "${web_services[@]}"
+echo "All Kingo Kit applications are running."
+
 sample_load_failed=false
 if [[ "$skip_samples" == false ]]; then
-  echo "Loading AdventureWorks and WideWorldImportersDW. This can take several minutes..."
+  echo "  [3/3] Loading AdventureWorks and WideWorldImportersDW as the final step."
+  echo "The applications are already available; the example import can take several minutes."
   if ! "${compose[@]}" --profile samples run --name kingo-sample-loader --rm --build sample-loader; then
     sample_load_failed=true
     echo "Sample loading did not finish, but the Kingo Kit apps are running." >&2

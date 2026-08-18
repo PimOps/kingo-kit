@@ -37,6 +37,13 @@ ensure_secret() {
   fi
 }
 
+ensure_default() {
+  local key="$1" value="$2"
+  if ! grep -q "^${key}=" "$env_file"; then
+    printf '%s=%s\n' "$key" "$value" >>"$env_file"
+  fi
+}
+
 ensure_secret POSTGRES_PASSWORD 18
 ensure_secret N8N_DB_PASSWORD 18
 ensure_secret LANGFLOW_DB_PASSWORD 18
@@ -44,12 +51,20 @@ ensure_secret LANGGRAPH_DB_PASSWORD 18
 ensure_secret METABASE_DB_PASSWORD 18
 ensure_secret CLOUDBEAVER_DB_PASSWORD 18
 ensure_secret JUPYTER_DB_PASSWORD 18
-ensure_secret STUDENT_DB_PASSWORD 18
 ensure_secret JUPYTER_MCP_TOKEN 24
 ensure_secret LANGFLOW_SECRET_KEY 24
 ensure_secret N8N_ENCRYPTION_KEY 24
-ensure_secret METABASE_ADMIN_PASSWORD 18
-ensure_secret CLOUDBEAVER_ADMIN_PASSWORD 18
+ensure_default STUDENT_DB_USER kingouser
+ensure_default STUDENT_DB_PASSWORD change_me_later
+ensure_default LANGFLOW_AUTO_LOGIN true
+ensure_default LANGFLOW_SUPERUSER kingouser
+ensure_default LANGFLOW_SUPERUSER_PASSWORD change_me_later
+ensure_default N8N_OWNER_EMAIL user@kingo.local
+ensure_default N8N_OWNER_PASSWORD change_me_later
+ensure_default METABASE_ADMIN_EMAIL user@kingo.local
+ensure_default METABASE_ADMIN_PASSWORD change_me_later
+ensure_default CLOUDBEAVER_ADMIN_USER kingouser
+ensure_default CLOUDBEAVER_ADMIN_PASSWORD change_me_later
 rm -f "$env_file.bak"
 chmod 600 "$env_file"
 if [[ "$created" == true ]]; then

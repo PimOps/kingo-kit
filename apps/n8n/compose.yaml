@@ -26,9 +26,34 @@ services:
     volumes:
       - n8n-data:/home/node/.n8n
       - ${KINGOKIT_SHARED_DIR:?Set KINGOKIT_SHARED_DIR}:/home/node/kingokit
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://localhost:5678/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
     networks:
       kingo-n8n:
         aliases: [kingo-n8n]
+
+  n8n-init:
+    container_name: kingo-n8n-init
+    image: ${N8N_IMAGE:-docker.n8n.io/n8nio/n8n:2.30.5}
+    restart: "no"
+    environment:
+      N8N_OWNER_EMAIL: ${N8N_OWNER_EMAIL:-user@kingo.local}
+      N8N_OWNER_PASSWORD: ${N8N_OWNER_PASSWORD:-change_me_later}
+    volumes:
+      - ../../docker/n8n/init.mjs:/opt/kingo/init-n8n.mjs:ro
+    entrypoint: ["node", "/opt/kingo/init-n8n.mjs"]
+    depends_on:
+      n8n:
+        condition: service_healthy
+    networks: [kingo-n8n]
 
 volumes:
   n8n-data:
