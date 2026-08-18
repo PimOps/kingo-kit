@@ -14,7 +14,6 @@ Install Docker Engine, the host-native Ollama launcher, and Kingo Kit for the
 current Ubuntu account.
 
 Options:
-  --skip-samples  Start the apps without downloading the sample databases
   --skip-ollama   Do not install Ollama on the Ubuntu host
   -h, --help      Show this help
 EOF
@@ -22,7 +21,7 @@ EOF
 
 for arg in "$@"; do
   case "$arg" in
-    --skip-samples|--skip-ollama) ;;
+    --skip-ollama) ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage >&2; exit 2 ;;
   esac
@@ -58,3 +57,4 @@ log "Running bootstrap-ubuntu.sh..."
 
 print_install_summary "$install_dir" "$shared_dir" /usr/local/bin/kingo
 echo "Run 'kingo urls' to see the application links."
+echo "Run 'kingo import wwi' or 'kingo import adventureworks' to load optional sample data."

@@ -178,12 +178,16 @@ def load_parquet_url(conn: psycopg.Connection, table_name: str, url: str, create
     # fact_sale.parquet is roughly 400 MB compressed. Stream it to the
     # ephemeral loader container and process bounded Arrow batches instead of
     # retaining both the HTTP body and the expanded table in RAM.
+    print(f"    Downloading {url.rsplit('/', 1)[-1]}...", flush=True)
     with requests.get(url, timeout=180, stream=True) as response:
         response.raise_for_status()
         with tempfile.NamedTemporaryFile(suffix=".parquet") as downloaded:
+            downloaded_bytes = 0
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 downloaded.write(chunk)
+                downloaded_bytes += len(chunk)
             downloaded.flush()
+            print(f"    Downloaded {downloaded_bytes / 1_000_000:.0f} MB; copying into wwi.{table_name}...", flush=True)
             # Microsoft's Spark-generated files use legacy INT96 timestamps.
             # Arrow otherwise reads them as nanoseconds, whose range ends in
             # 2262, while WWI uses 9999-12-31 as an open-ended ValidTo value.
@@ -192,6 +196,11 @@ def load_parquet_url(conn: psycopg.Connection, table_name: str, url: str, create
             parquet = pq.ParquetFile(downloaded.name, coerce_int96_timestamp_unit="us")
             arrow_schema = parquet.schema_arrow
             columns = [clean_name(name) for name in arrow_schema.names]
+            row_count = parquet.metadata.num_rows
+            # Row-by-row COPY is slow for multi-million-row tables (fact_sale
+            # can take several minutes) with no other output, so report
+            # progress periodically instead of looking stuck.
+            report_every = max(row_count // 10, 100_000) if row_count else 200_000
 
             with conn.cursor() as cur:
                 if create:
@@ -205,11 +214,15 @@ def load_parquet_url(conn: psycopg.Connection, table_name: str, url: str, create
                     sql.Identifier(table_name), sql.SQL(", ").join(map(sql.Identifier, columns))
                 )
                 total = 0
+                next_report = report_every
                 with cur.copy(copy_stmt) as copy:
                     for batch in parquet.iter_batches(batch_size=5000):
                         for row in batch.to_pylist():
                             copy.write_row([row[original] for original in arrow_schema.names])
                         total += batch.num_rows
+                        if total >= next_report:
+                            print(f"      {table_name}: copied {total:,} of {row_count:,} rows", flush=True)
+                            next_report += report_every
                 return total
 
 
@@ -253,6 +266,7 @@ def load_wwi() -> None:
             for index, url in enumerate(sorted(urls)):
                 total += load_parquet_url(conn, table_name, url, create=index == 0)
             counts[table_name] = total
+            print(f"    {table_name}: done ({total:,} rows)", flush=True)
         with conn.cursor() as cur:
             roles = sql.SQL(", ").join(map(sql.Identifier, ["metabase", "cloudbeaver", "jupyter", "langflow", "langgraph", "n8n", STUDENT_DB_USER]))
             cur.execute(sql.SQL("GRANT USAGE ON SCHEMA wwi TO {}").format(roles))
@@ -261,9 +275,15 @@ def load_wwi() -> None:
 
 
 def main() -> int:
+    dataset = sys.argv[1] if len(sys.argv) > 1 else "all"
+    if dataset not in ("all", "adventureworks", "wwi"):
+        print(f"Unknown dataset: {dataset} (expected 'adventureworks' or 'wwi')", file=sys.stderr, flush=True)
+        return 2
     try:
-        load_adventureworks()
-        load_wwi()
+        if dataset in ("all", "adventureworks"):
+            load_adventureworks()
+        if dataset in ("all", "wwi"):
+            load_wwi()
     except Exception as exc:
         print(f"Sample loading failed: {exc}", file=sys.stderr, flush=True)
         return 1

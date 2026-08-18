@@ -79,7 +79,7 @@ Docker Desktop can run the Compose services using Linux containers, but Kingo Ki
 
 To make native Windows fully supported, Kingo Kit should add:
 
-- `kingo.ps1` with equivalents for `up`, `down`, `status`, `health`, `urls`, `samples`, and per-app commands;
+- `kingo.ps1` with equivalents for `up`, `down`, `status`, `health`, `urls`, `import`, and per-app commands;
 - a PowerShell credential generator using .NET's cryptographic random-number generator;
 - a Windows setup script that verifies Docker Desktop and Linux-container mode;
 - automated parity checks between the Bash and PowerShell launchers.

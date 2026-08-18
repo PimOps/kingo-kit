@@ -29,9 +29,8 @@ services:
       ADVENTUREWORKS_DSN: postgresql://postgres:${POSTGRES_PASSWORD}@kingo-adventureworks-source:5432/postgres
       WWI_CONTAINER_URL: ${WWI_CONTAINER_URL:-https://fabrictutorialdata.blob.core.windows.net/sampledata}
       STUDENT_DB_USER: ${STUDENT_DB_USER:-kingouser}
-    depends_on:
-      adventureworks-source:
-        condition: service_healthy
+    # No depends_on: `kingo import wwi` runs this without adventureworks-source,
+    # and `kingo import adventureworks` starts that dependency itself first.
     networks: [kingo-samples]
 
 networks:

@@ -65,7 +65,7 @@ Commands:
   health SERVICE  Show container health details and recent service logs
   docker ARGS...  Run a Docker command with Kingo's group-access fallback
   app NAME ACTION Manage one app: up, down, restart, status, or logs
-  samples         Load/retry AdventureWorks and WideWorldImportersDW
+  import DATASET  Load one sample dataset: wwi or adventureworks
   psql            Open psql in the warehouse as the postgres administrator
   reset --yes     Factory-reset the apps and start a fresh stack
   uninstall       Remove Kingo Kit after confirmation (keeps ~/Kingokit)
@@ -469,17 +469,29 @@ EOF
     docker "$@"
     ;;
   app) shift; run_app "$@" ;;
-  samples)
+  import)
+    dataset="${2:-}"
+    case "$dataset" in
+      wwi|adventureworks) ;;
+      *) echo "Usage: ./kingo import {wwi|adventureworks}" >&2; exit 2 ;;
+    esac
     ensure_docker_access "$@"
     ensure_kingo_network
     log "Starting PostgreSQL..."
     "${compose[@]}" up -d --wait --wait-timeout 180 postgres
     reconcile_postgres
-    ensure_container_names_available kingo-adventureworks-source kingo-sample-loader
-    log "Loading AdventureWorks and WideWorldImportersDW..."
-    "${compose[@]}" --profile samples run --name kingo-sample-loader --rm --build sample-loader
-    "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
-    log "Sample loading complete."
+    ensure_container_names_available kingo-sample-loader
+    if [[ "$dataset" == "adventureworks" ]]; then
+      ensure_container_names_available kingo-adventureworks-source
+      log "Starting the AdventureWorks source database..."
+      "${compose[@]}" --profile samples up -d --build --wait --wait-timeout 180 adventureworks-source
+    fi
+    log "Loading ${dataset}..."
+    "${compose[@]}" --profile samples run --name kingo-sample-loader --rm --build sample-loader "$dataset"
+    if [[ "$dataset" == "adventureworks" ]]; then
+      "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
+    fi
+    log "Import complete."
     ;;
   psql)
     ensure_docker_access "$@"

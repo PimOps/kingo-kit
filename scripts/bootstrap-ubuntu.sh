@@ -6,7 +6,6 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$repo_dir/scripts/lib/install-common.sh"
 init_kingo_logging bootstrap-ubuntu
 
-skip_samples=false
 skip_ollama=false
 
 usage() {
@@ -16,7 +15,6 @@ Usage: ./scripts/bootstrap-ubuntu.sh [options]
 Install Docker Engine, Ollama, and the complete Kingo Kit classroom stack.
 
 Options:
-  --skip-samples  Start the apps without downloading the sample databases
   --skip-ollama   Do not install Ollama on the Ubuntu host
   -h, --help      Show this help
 EOF
@@ -24,7 +22,6 @@ EOF
 
 for arg in "$@"; do
   case "$arg" in
-    --skip-samples) skip_samples=true ;;
     --skip-ollama) skip_ollama=true ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage >&2; exit 2 ;;
@@ -141,7 +138,7 @@ log "Created the shared student folder: $shared_dir"
 if ! "${docker_command[@]}" network inspect kingo-kit >/dev/null 2>&1; then
   "${docker_command[@]}" network create kingo-kit >/dev/null
 fi
-log "  [1/3] Starting PostgreSQL..."
+log "  [1/2] Starting PostgreSQL..."
 "${compose[@]}" up -d --build --wait --wait-timeout 180 postgres
 "${compose[@]}" exec -T postgres \
   /docker-entrypoint-initdb.d/10-kingo-init.sh >/dev/null
@@ -149,23 +146,11 @@ log "  [1/3] Starting PostgreSQL..."
   psql --username postgres --dbname postgres --set ON_ERROR_STOP=1 \
   --file /docker-entrypoint-initdb.d/20-required-extensions.sql >/dev/null
 
-log "  [2/3] Starting web applications..."
+log "  [2/2] Starting web applications..."
 "${compose[@]}" up -d --build
 web_services=(jupyter jupyter-mcp langflow n8n metabase cloudbeaver qdrant)
 "${compose[@]}" up -d --wait --wait-timeout 300 "${web_services[@]}"
 log "All Kingo Kit applications are running."
-
-sample_load_failed=false
-if [[ "$skip_samples" == false ]]; then
-  log "  [3/3] Loading AdventureWorks and WideWorldImportersDW as the final step."
-  log "The applications are already available; the example import can take several minutes."
-  if ! "${compose[@]}" --profile samples run --name kingo-sample-loader --rm --build sample-loader; then
-    sample_load_failed=true
-    echo "Sample loading did not finish, but the Kingo Kit apps are running." >&2
-    echo "Retry later with: $repo_dir/kingo samples" >&2
-  fi
-  "${compose[@]}" --profile samples stop adventureworks-source >/dev/null
-fi
 
 echo
 echo "Kingo Kit is running."
@@ -175,6 +160,4 @@ if [[ "$skip_ollama" == false ]]; then
   echo "To configure and launch Claude Code with Ollama Cloud: ollama launch claude"
 fi
 echo "Log out and back in once before using docker directly without sudo."
-if [[ "$sample_load_failed" == true ]]; then
-  echo "The apps are ready; only the optional sample-data import remains incomplete."
-fi
+echo "Run 'kingo import wwi' or 'kingo import adventureworks' to load optional sample data."

@@ -25,4 +25,4 @@ docker compose \
   up -d
 ```
 
-PostgreSQL must be running before database-backed applications are started. The sample-data Compose file is a one-shot maintenance utility and is normally invoked with `./kingo samples`.
+PostgreSQL must be running before database-backed applications are started. The sample-data Compose file is a one-shot maintenance utility and is normally invoked with `./kingo import wwi` or `./kingo import adventureworks`.

@@ -12,7 +12,7 @@ The stack includes:
 - n8n for workflow automation
 - Metabase for business intelligence (pre-connected to the warehouse)
 - CloudBeaver for browser-based SQL and database exploration
-- AdventureWorks and WideWorldImportersDW sample data in PostgreSQL
+- AdventureWorks and WideWorldImportersDW sample data, loadable on demand into PostgreSQL
 - On Ubuntu only: host-native Ollama, ready to configure Claude Code with `ollama launch claude`
 - Kingo Kit's SKKU-green hanok wallpaper on Ubuntu Desktop
 - Firefox homepage configured as <https://www.askkingo.ai>
@@ -42,7 +42,7 @@ All three installers provide the same separation between the application and stu
 | Private configuration | `~/.config/kingokit` | `~/.config/kingokit` | `~/.config/kingokit` |
 | Terminal command | `/usr/local/bin/kingo` | `~/.local/bin/kingo` | `~/.local/bin/kingo` |
 
-The macOS and WSL installers do not install Docker Desktop themselves. They verify that it is running and explain what is missing. They do not install or configure host-native applications; Ollama integration is available only through the Ubuntu installer. Homebrew is not required. Use `--no-start` to install without starting containers or `--skip-samples` to postpone the sample database download.
+The macOS and WSL installers do not install Docker Desktop themselves. They verify that it is running and explain what is missing. They do not install or configure host-native applications; Ollama integration is available only through the Ubuntu installer. Homebrew is not required. Use `--no-start` to install without starting containers. Sample data is not loaded by the installers; run `kingo import wwi` or `kingo import adventureworks` afterward when needed.
 
 ## Quick start on fresh Ubuntu
 
@@ -99,7 +99,8 @@ kingo app jupyter up     # manage only one application
 kingo app qdrant up      # start only Qdrant
 kingo app metabase logs  # follow one application's logs
 kingo docker ps          # Docker CLI through the group-access fallback
-kingo samples            # retry/finish sample-data loading
+kingo import wwi         # load WideWorldImportersDW
+kingo import adventureworks # load AdventureWorks
 kingo psql               # warehouse SQL prompt
 ```
 
@@ -213,11 +214,10 @@ Qdrant is intentionally unauthenticated for local classroom use and is bound to 
 ## Installation options
 
 ```bash
-./scripts/install-ubuntu.sh --skip-samples
 ./scripts/install-ubuntu.sh --skip-ollama
 ```
 
-If samples were skipped or the download was interrupted, run `kingo samples` later. The loader records completed datasets and will not duplicate them.
+Sample data is not loaded automatically. Run `kingo import wwi` or `kingo import adventureworks` after the install finishes; each dataset is independently checkpointed and safe to retry.
 
 To reapply only the wallpaper and Firefox homepage configuration:
 
@@ -245,7 +245,7 @@ To factory-reset all application state and immediately start a clean stack:
 kingo reset --yes
 ```
 
-This deletes databases, n8n workflows, Langflow state, and web-app settings, but retains downloaded images and the Kingo Kit installation. Files saved in `~/Kingokit` remain. Sample databases are not downloaded automatically after a reset; run `kingo samples` when they are needed.
+This deletes databases, n8n workflows, Langflow state, and web-app settings, but retains downloaded images and the Kingo Kit installation. Files saved in `~/Kingokit` remain. Sample databases are not loaded automatically after a reset; run `kingo import wwi` or `kingo import adventureworks` when they are needed.
 
 ## Uninstalling after the semester
 
@@ -278,7 +278,7 @@ By default, uninstall removes all Kingo Kit containers, images, volumes, its Doc
 - `permission denied` for direct Docker commands: run `./kingo doctor` to distinguish account membership, session membership, daemon status, and socket permissions. `./kingo docker ps` works through Kingo's group-access fallback. If the account is listed in the Docker group but the current session is not, `newgrp docker` activates it in the current terminal. If the account was not added, run `sudo usermod -aG docker "$USER"` once and reboot Ubuntu.
 - A service is `unhealthy`: inspect its health-check history and recent logs with `./kingo health SERVICE`, for example `./kingo health metabase`.
 - A port is already in use: edit that service's host port in `~/.config/kingokit/.env`, then run `kingo up`.
-- Sample loading failed: verify internet access, then run `./kingo samples`. AdventureWorks and WWI are independently checkpointed.
+- Sample loading failed: verify internet access, then rerun `./kingo import wwi` or `./kingo import adventureworks`. AdventureWorks and WWI are independently checkpointed.
 - Low memory: stop unused apps with `./kingo app langflow down` and `./kingo app metabase down`, or give the VM more RAM.
 - Metabase was manually initialized with different credentials before provisioning completed: sign in and add PostgreSQL using the settings in `docs/connections.md`, or reset the stack on a disposable fresh install.
 

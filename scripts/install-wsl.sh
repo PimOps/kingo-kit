@@ -7,7 +7,6 @@ source "$script_dir/lib/install-common.sh"
 init_kingo_logging install-wsl
 
 start_stack=true
-load_samples=true
 usage() {
   cat <<'EOF'
 Usage: ./scripts/install-wsl.sh [options]
@@ -17,7 +16,6 @@ must already be installed and running in Windows.
 
 Options:
   --no-start      Install the command and files without starting containers
-  --skip-samples  Start the apps without loading the sample databases
   -h, --help      Show this help
 EOF
 }
@@ -25,7 +23,6 @@ EOF
 for arg in "$@"; do
   case "$arg" in
     --no-start) start_stack=false ;;
-    --skip-samples) load_samples=false ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage >&2; exit 2 ;;
   esac
@@ -57,11 +54,8 @@ if [[ "$start_stack" == true ]]; then
   fi
   log "Running: kingo up"
   "$install_dir/kingo" up
-  if [[ "$load_samples" == true ]]; then
-    log "Final step: loading the example databases. The applications are already running."
-    "$install_dir/kingo" samples
-  fi
 fi
 
 print_install_summary "$install_dir" "$shared_dir" "$bin_dir/kingo"
 echo "Open a new WSL terminal, then run 'kingo urls'."
+echo "Run 'kingo import wwi' or 'kingo import adventureworks' to load optional sample data."
