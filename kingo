@@ -41,6 +41,19 @@ export KINGOKIT_SHARED_DIR="$shared_dir"
 
 compose=(docker compose --project-directory "$repo_dir" --env-file "$env_file")
 
+# A stray .env from a different Kingo Kit copy (e.g. a dev clone sitting next
+# to an installed copy) would otherwise silently report credentials that do
+# not match the containers actually running under the same project name.
+warn_if_env_mismatch() {
+  local running_password
+  running_password="$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' kingo-postgres 2>/dev/null | sed -n 's/^POSTGRES_PASSWORD=//p' || true)"
+  if [[ -n "$running_password" && -n "${POSTGRES_PASSWORD:-}" && "$running_password" != "$POSTGRES_PASSWORD" ]]; then
+    echo "Warning: $env_file does not match the running kingo-postgres container's credentials." >&2
+    echo "This copy of kingo is not the one managing the running containers (a different install or clone is). Values below may not apply to what is actually running; use that installation's 'kingo' command instead." >&2
+  fi
+}
+warn_if_env_mismatch
+
 # Skip file logging for quick, output-parsed lookups; log everything else so a
 # stuck or failed run (up, samples, uninstall, ...) can be diagnosed later.
 case "${1:-}" in
