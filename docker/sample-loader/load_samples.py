@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from urllib.parse import urlparse
@@ -181,11 +182,23 @@ def load_parquet_url(conn: psycopg.Connection, table_name: str, url: str, create
     print(f"    Downloading {url.rsplit('/', 1)[-1]}...", flush=True)
     with requests.get(url, timeout=180, stream=True) as response:
         response.raise_for_status()
+        content_length = int(response.headers.get("content-length") or 0)
         with tempfile.NamedTemporaryFile(suffix=".parquet") as downloaded:
             downloaded_bytes = 0
+            last_report = time.monotonic()
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 downloaded.write(chunk)
                 downloaded_bytes += len(chunk)
+                # A large file (fact_sale is ~400 MB) can take minutes with a
+                # slow connection; report progress so it doesn't look stuck.
+                now = time.monotonic()
+                if now - last_report >= 10:
+                    if content_length:
+                        pct = downloaded_bytes / content_length * 100
+                        print(f"      downloaded {downloaded_bytes / 1_000_000:.0f} of {content_length / 1_000_000:.0f} MB ({pct:.0f}%)", flush=True)
+                    else:
+                        print(f"      downloaded {downloaded_bytes / 1_000_000:.0f} MB", flush=True)
+                    last_report = now
             downloaded.flush()
             print(f"    Downloaded {downloaded_bytes / 1_000_000:.0f} MB; copying into wwi.{table_name}...", flush=True)
             # Microsoft's Spark-generated files use legacy INT96 timestamps.
