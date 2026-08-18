@@ -84,6 +84,28 @@ ollama launch claude
 
 On Ubuntu, `ollama launch claude` is interactive the first time: it helps the student sign in/select an Ollama Cloud model and configures Claude Code. Ollama runs on Ubuntu itself, not in Docker, so coding tools can work naturally with files in `~/Kingokit`. This component is omitted from the macOS and Windows/WSL installations.
 
+## Windows setup with Docker Desktop already installed
+
+The recommended Windows workflow uses Docker Desktop's WSL 2 backend:
+
+1. Enable integration for the student's WSL distribution under **Docker Desktop > Settings > Resources > WSL Integration**.
+2. Open the WSL distribution's terminal (not PowerShell or Command Prompt) and run:
+
+   ```bash
+   git clone https://github.com/PimOps/kingo-kit.git
+   cd kingo-kit
+   ./scripts/install-wsl.sh
+   ```
+3. Open the application links:
+
+   ```bash
+   kingo urls
+   ```
+
+The applications open in the normal Windows browser through `localhost`. The student folder lives at `~/Kingokit` inside WSL; the installer adds a `Kingokit` shortcut in the actual Windows Documents folder pointing into WSL, without duplicating or moving files.
+
+Kingo Kit does not yet provide a native PowerShell launcher or credential generator, so running outside WSL (for example with Git Bash) is not a first-class supported path. See [docs/docker-desktop.md](docs/docker-desktop.md) for details.
+
 ## Daily commands
 
 ```bash
