@@ -44,6 +44,7 @@ profile_file="${KINGOKIT_PROFILE_FILE:-$HOME/.zprofile}"
 echo "Installing Kingo Kit for macOS..."
 install_user_payload "$source_dir" "$install_dir"
 create_shared_folder "$shared_dir"
+create_macos_documents_link "$shared_dir"
 install_user_command "$install_dir" "$bin_dir" "$profile_file"
 
 if [[ "$start_stack" == true ]]; then

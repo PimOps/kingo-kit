@@ -37,6 +37,7 @@ All three installers provide the same separation between the application and stu
 | Purpose | Ubuntu | macOS | Windows WSL |
 |---|---|---|---|
 | Student files | `~/Kingokit` | `~/Kingokit` | `~/Kingokit` |
+| Easy-to-find access | Home folder | `Documents/Kingokit` Finder link | `Kingokit` shortcut in Windows Documents |
 | Application files | `/opt/kingokit` | `~/Library/Application Support/Kingo Kit` | `~/.local/share/kingokit` |
 | Private configuration | `~/.config/kingokit` | `~/.config/kingokit` | `~/.config/kingokit` |
 | Terminal command | `/usr/local/bin/kingo` | `~/.local/bin/kingo` | `~/.local/bin/kingo` |
@@ -159,7 +160,9 @@ Local AI assistants that support MCP can control Jupyter notebooks and kernels t
 
 ## Shared student files
 
-The installer and launcher create `~/Kingokit`. Files placed there remain ordinary host files, so students can open and save them with Finder, Windows Explorer, or Ubuntu's Files application while also using them inside the containers. Existing installations using the former `~/kingokit` name are renamed automatically without deleting their contents:
+The installer and launcher create `~/Kingokit`. Files placed there remain ordinary host files, so students can open and save them with Finder, Windows Explorer, or Ubuntu's Files application while also using them inside the containers. For easier discovery, the macOS installer adds a `Kingokit` link in Documents and the WSL installer adds a `Kingokit` shortcut to the actual Windows Documents folder. These links point to the canonical `~/Kingokit` folder; they do not duplicate or move student files. The installer leaves an existing item with the same name untouched.
+
+Keeping the canonical folder in the user's home directory avoids requiring Docker Desktop to continuously access macOS's privacy-protected Documents folder and avoids storing container workloads on the slower Windows-mounted filesystem under `/mnt/c`. Existing installations using the former `~/kingokit` name are renamed automatically without deleting their contents:
 
 | Application | Path inside the container |
 |---|---|

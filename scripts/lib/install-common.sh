@@ -63,6 +63,58 @@ create_shared_folder() {
   chmod a+rwx "$shared_dir"
 }
 
+create_macos_documents_link() {
+  local shared_dir="$1" documents_dir="$HOME/Documents" link_path
+  link_path="$documents_dir/Kingokit"
+
+  # Keep the canonical data outside Documents so Docker Desktop does not need
+  # ongoing access to a macOS privacy-protected folder. The Finder-visible link
+  # is only a discoverability aid and must never replace a user-created item.
+  if [[ -e "$link_path" || -L "$link_path" ]]; then
+    if [[ -L "$link_path" && "$(readlink "$link_path")" == "$shared_dir" ]]; then
+      return 0
+    fi
+    echo "Not creating $link_path because an item already exists there." >&2
+    return 0
+  fi
+  if ! mkdir -p "$documents_dir" || ! ln -s "$shared_dir" "$link_path"; then
+    echo "Could not add the Kingokit link to Documents; student files remain in $shared_dir." >&2
+    return 0
+  fi
+  echo "Added a Finder link to student files: $link_path"
+}
+
+create_windows_documents_shortcut() {
+  local shared_dir="$1" documents_windows documents_wsl shortcut_wsl target_windows
+
+  if ! command -v powershell.exe >/dev/null 2>&1 || ! command -v wslpath >/dev/null 2>&1; then
+    echo "Could not add a Windows Documents shortcut; student files remain in $shared_dir." >&2
+    return 0
+  fi
+
+  documents_windows="$(powershell.exe -NoProfile -NonInteractive -Command '[Environment]::GetFolderPath("MyDocuments")' 2>/dev/null | tr -d '\r')"
+  documents_wsl="$(wslpath -u "$documents_windows" 2>/dev/null || true)"
+  if [[ -z "$documents_windows" || -z "$documents_wsl" ]]; then
+    echo "Could not locate Windows Documents; student files remain in $shared_dir." >&2
+    return 0
+  fi
+
+  shortcut_wsl="$documents_wsl/Kingokit.lnk"
+  if [[ -e "$documents_wsl/Kingokit" || -L "$documents_wsl/Kingokit" || -e "$shortcut_wsl" || -L "$shortcut_wsl" ]]; then
+    echo "Not creating the Windows Documents shortcut because a Kingokit item already exists there." >&2
+    return 0
+  fi
+
+  target_windows="$(wslpath -w "$shared_dir" 2>/dev/null || true)"
+  if [[ -z "$target_windows" ]] || ! powershell.exe -NoProfile -NonInteractive -Command \
+    '$shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($args[0]); $shortcut.TargetPath = $args[1]; $shortcut.WorkingDirectory = $args[1]; $shortcut.Save()' \
+    "$documents_windows\\Kingokit.lnk" "$target_windows" >/dev/null 2>&1; then
+    echo "Could not add the Kingokit shortcut to Windows Documents; student files remain in $shared_dir." >&2
+    return 0
+  fi
+  echo "Added a Windows Documents shortcut to student files: $documents_windows\\Kingokit.lnk"
+}
+
 install_user_command() {
   local install_dir="$1" bin_dir="$2" profile_file="$3"
   local path_line="export PATH=\"$bin_dir:\$PATH\""

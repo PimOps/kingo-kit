@@ -47,7 +47,9 @@ Open the application links shown by:
 kingo urls
 ```
 
-The installer creates `~/Kingokit` and installs the application separately in `~/Library/Application Support/Kingo Kit`. The shared folder is mounted into JupyterLab, Langflow, and n8n, so files saved by those containers are available directly in Finder.
+The installer creates `~/Kingokit` and installs the application separately in `~/Library/Application Support/Kingo Kit`. It also creates a `Kingokit` link in the user's Documents folder, making the student files easy to find in Finder. The link points to `~/Kingokit`; files are not duplicated or moved. Keeping the real folder outside Documents avoids requiring Docker Desktop to continuously access a macOS privacy-protected folder. If an item named `Kingokit` already exists in Documents, the installer leaves it untouched.
+
+The shared folder is mounted into JupyterLab, Langflow, and n8n, so files saved by those containers are available directly in Finder.
 
 Do not run `scripts/bootstrap-ubuntu.sh` or `scripts/install-ubuntu.sh` on macOS.
 
@@ -65,7 +67,9 @@ cd kingo-kit
 
 The applications open in the normal Windows browser through `localhost`.
 
-The student folder is stored in the WSL home directory at `~/Kingokit`. It is also reachable from Windows Explorer under `\\wsl$\DISTRIBUTION_NAME\home\USERNAME\Kingokit`.
+The student folder is stored in the WSL home directory at `~/Kingokit`. The installer adds a `Kingokit` shortcut to the user's actual Windows Documents folder, so students can open it directly from Windows Explorer. The shortcut points into WSL; files are not duplicated or moved. Keeping the real folder in WSL avoids the filesystem-performance and Linux-permission limitations of storing container workloads under `/mnt/c`.
+
+The folder is also reachable directly from Windows Explorer under `\\wsl$\DISTRIBUTION_NAME\home\USERNAME\Kingokit`. If an item named `Kingokit` already exists in Windows Documents, the installer leaves it untouched.
 
 See Docker's [WSL development guide](https://docs.docker.com/desktop/features/wsl/use-wsl/) for editor and filesystem recommendations.
 
