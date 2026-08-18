@@ -80,7 +80,7 @@ Commands:
   app NAME ACTION Manage one app: up, down, restart, status, or logs
   import DATASET  Load one sample dataset: wwi or adventureworks
   psql            Open psql in the warehouse as the postgres administrator
-  calculate       Show the stack's Docker disk footprint (images + volumes)
+  footprint       Show the stack's Docker disk footprint (images + volumes)
   reset --yes     Factory-reset the apps and start a fresh stack
   uninstall       Remove Kingo Kit after confirmation (keeps ~/Kingokit)
                   Add --keep-images (or -keepimages) to retain Docker images
@@ -577,7 +577,7 @@ EOF
     ensure_docker_access "$@"
     "${compose[@]}" exec postgres psql -U postgres -d warehouse
     ;;
-  calculate) calculate_footprint "$@" ;;
+  footprint) calculate_footprint "$@" ;;
   reset)
     if [[ "${2:-}" != "--yes" ]]; then
       echo "This factory reset permanently deletes Kingo Kit databases, app settings, and workflows, then starts a fresh stack." >&2
